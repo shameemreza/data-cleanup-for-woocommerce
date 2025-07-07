@@ -1,0 +1,462 @@
+/**
+ * WooCommerce Data Cleanup - Admin CSS
+ */
+
+/* Main container */
+.wc-data-cleanup-content {
+  margin-top: 20px;
+}
+
+/* Warning box */
+.wc-data-cleanup-warning {
+  background-color: #fcf8e3;
+  border-left: 4px solid #f0ad4e;
+  padding: 12px;
+  margin-bottom: 20px;
+}
+
+.wc-data-cleanup-warning p {
+  margin: 0.5em 0;
+}
+
+.wc-data-cleanup-warning strong {
+  color: #d9534f;
+}
+
+/* Action groups */
+.wc-data-cleanup-actions {
+  margin-bottom: 30px;
+  padding: 15px;
+  background-color: #f9f9f9;
+  border: 1px solid #e5e5e5;
+  border-radius: 3px;
+}
+
+.wc-data-cleanup-action-group {
+  margin-bottom: 15px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.wc-data-cleanup-action-group:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.wc-data-cleanup-help {
+  display: inline-block;
+  margin-left: 10px;
+  color: #777;
+  font-style: italic;
+}
+
+/* Selection area */
+.wc-data-cleanup-selection {
+  margin-bottom: 30px;
+  padding: 15px;
+  background-color: #f9f9f9;
+  border: 1px solid #e5e5e5;
+  border-radius: 3px;
+}
+
+.wc-data-cleanup-selection .description {
+  margin-bottom: 10px;
+  color: #666;
+  font-style: italic;
+}
+
+.wc-data-cleanup-select {
+  width: 100%;
+}
+
+.wc-data-cleanup-select-status {
+  margin-left: 10px;
+  min-width: 200px;
+}
+
+.wc-data-cleanup-date {
+  margin-left: 10px;
+  min-width: 150px;
+}
+
+/* Results area */
+.wc-data-cleanup-results {
+  margin-top: 20px;
+  min-height: 30px;
+  position: relative;
+}
+
+.wc-data-cleanup-spinner {
+  float: none;
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.wc-data-cleanup-message {
+  margin-left: 30px;
+}
+
+/* Tab content */
+.wc-data-cleanup-tab-content {
+  margin-top: 20px;
+}
+
+/* Modal Dialog */
+.wc-data-cleanup-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 100000;
+  display: none;
+}
+
+.wc-data-cleanup-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+  width: 500px;
+  max-width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  z-index: 100001;
+  display: none;
+}
+
+.wc-data-cleanup-modal-header {
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.wc-data-cleanup-modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.wc-data-cleanup-modal-close {
+  cursor: pointer;
+  font-size: 22px;
+  color: #777;
+  line-height: 1;
+}
+
+.wc-data-cleanup-modal-close:hover {
+  color: #d9534f;
+}
+
+.wc-data-cleanup-modal-body {
+  padding: 20px;
+}
+
+.wc-data-cleanup-modal-footer {
+  padding: 15px 20px;
+  border-top: 1px solid #eee;
+  text-align: right;
+}
+
+.wc-data-cleanup-modal-footer .button {
+  margin-left: 10px;
+}
+
+/* Data details in modal */
+.wc-data-cleanup-data-details {
+  margin-bottom: 20px;
+}
+
+.wc-data-cleanup-data-details h4 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.wc-data-cleanup-data-list {
+  background: #f9f9f9;
+  border: 1px solid #e5e5e5;
+  border-radius: 3px;
+  padding: 10px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.wc-data-cleanup-data-list ul {
+  margin: 0;
+}
+
+.wc-data-cleanup-options {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+}
+
+.wc-data-cleanup-option {
+  margin-bottom: 10px;
+}
+
+.wc-data-cleanup-option label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 600;
+}
+
+.wc-data-cleanup-option select {
+  width: 100%;
+}
+
+/* Status indicators */
+.wc-data-cleanup-has-data {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 5px;
+}
+
+.wc-data-cleanup-has-orders {
+  background-color: #d9534f;
+}
+
+.wc-data-cleanup-has-posts {
+  background-color: #f0ad4e;
+}
+
+.wc-data-cleanup-has-comments {
+  background-color: #5bc0de;
+}
+
+/* Admin user indicator */
+.admin-user-indicator {
+  background-color: #2271b1;
+  color: #fff;
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: 5px;
+  font-weight: 500;
+}
+
+.wc-data-cleanup-legend {
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+.wc-data-cleanup-legend-item {
+  display: inline-block;
+  margin-right: 15px;
+}
+
+.wc-data-cleanup-legend-note {
+  color: #666;
+  font-style: italic;
+  font-size: 11px;
+}
+
+.wc-data-cleanup-order-count {
+  font-size: 11px;
+  color: #666;
+  margin-left: 3px;
+}
+
+.select2-selection__data-loading {
+  font-style: italic;
+  font-size: 11px;
+  color: #666;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 782px) {
+  .wc-data-cleanup-select-status,
+  .wc-data-cleanup-date {
+    margin-left: 0;
+    margin-top: 10px;
+    display: block;
+    width: 100%;
+  }
+
+  .wc-data-cleanup-modal {
+    width: 95%;
+  }
+}
+
+/* Make buttons more prominent */
+.wc-data-cleanup-delete-all-users,
+.wc-data-cleanup-delete-all-customers,
+.wc-data-cleanup-delete-all-orders {
+  background-color: #d9534f !important;
+  border-color: #d43f3a !important;
+  color: #fff !important;
+  text-shadow: none !important;
+  box-shadow: 0 1px 0 #b92c28 !important;
+}
+
+.wc-data-cleanup-delete-all-users:hover,
+.wc-data-cleanup-delete-all-customers:hover,
+.wc-data-cleanup-delete-all-orders:hover {
+  background-color: #c9302c !important;
+  border-color: #ac2925 !important;
+}
+
+/* Select2 customizations */
+.select2-container--default
+  .select2-results__option--highlighted[aria-selected] {
+  background-color: #0073aa;
+}
+
+.select2-container--default
+  .select2-selection--multiple
+  .select2-selection__choice {
+  background-color: #f1f1f1;
+  border: 1px solid #ddd;
+}
+
+.select2-container--default
+  .select2-selection--multiple
+  .select2-selection__choice__remove:hover {
+  color: #d9534f;
+}
+
+/* Status dropdown updating indicator */
+.updating-counts {
+  background-color: #f7f7f7;
+  border-color: #999;
+  color: #999;
+  opacity: 0.8;
+  cursor: progress;
+}
+
+/* Select2 item with data indicators */
+.select2-selection__choice__data-indicators {
+  margin-right: 5px;
+}
+
+/* Batch processing progress */
+.wc-data-cleanup-progress {
+  margin-top: 20px;
+  display: none;
+}
+
+.wc-data-cleanup-progress-bar-container {
+  height: 20px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+  margin-bottom: 10px;
+}
+
+.wc-data-cleanup-progress-bar {
+  height: 100%;
+  background-color: #5cb85c;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.wc-data-cleanup-progress-text {
+  text-align: center;
+  font-size: 12px;
+  color: #777;
+}
+
+/* Status checkboxes */
+.wc-data-cleanup-status-checkboxes {
+  margin: 15px 0;
+}
+
+.status-checkbox-container {
+  max-height: 200px;
+  overflow-y: auto;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  padding: 10px;
+  margin: 10px 0;
+  display: block !important; /* Force display */
+}
+
+.status-checkbox-wrapper {
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+}
+
+.status-checkbox-wrapper label {
+  margin-left: 5px;
+  cursor: pointer;
+}
+
+.status-checkbox-wrapper label span {
+  color: #666;
+  font-size: 12px;
+  margin-left: 3px;
+}
+
+.status-loading-message,
+.preview-loading-message {
+  color: #666;
+  font-style: italic;
+  padding: 10px 0;
+}
+
+.error-message {
+  color: #d9534f;
+}
+
+.no-statuses-message {
+  color: #666;
+  font-style: italic;
+}
+
+/* Order preview */
+.wc-data-cleanup-status-preview,
+.wc-data-cleanup-date-preview {
+  margin-top: 15px;
+  border: 1px solid #e5e5e5;
+  background: #f9f9f9;
+  padding: 10px;
+  border-radius: 3px;
+}
+
+.order-preview-list {
+  margin: 0;
+}
+
+.order-preview-list li {
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+  margin: 0;
+}
+
+.order-preview-list li:last-child {
+  border-bottom: none;
+}
+
+.order-preview-list li.more-message {
+  font-style: italic;
+  color: #666;
+}
+
+/* Date picker inputs */
+.wc-data-cleanup-date {
+  cursor: pointer;
+  min-width: 130px;
+  padding-right: 30px !important; /* Space for calendar icon */
+  background-color: #fff !important; /* Force white background */
+}
+
+/* Calendar icon */
+.dashicons-calendar-alt {
+  position: relative;
+  top: 3px;
+  margin-left: -25px;
+  color: #777;
+  cursor: pointer;
+}
