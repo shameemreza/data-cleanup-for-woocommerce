@@ -1367,26 +1367,23 @@ class WC_Data_Cleanup_Admin {
 			error_log('Total Count: ' . $total_count);
 		}
 		
-		// Define the base query
-		$base_query = "SELECT p.ID, p.post_date, p.post_status, 
-			COALESCE(pm_order.meta_value, 0) as order_id,
-			COALESCE(pm_customer.meta_value, 0) as customer_id,
-			COALESCE(pm_product.meta_value, 0) as product_id,
-			COALESCE(pm_cost.meta_value, 0) as cost,
-			COALESCE(pm_start.meta_value, '') as start_date
-			FROM {$wpdb->posts} p
-			LEFT JOIN {$wpdb->postmeta} pm_order ON p.ID = pm_order.post_id AND pm_order.meta_key = '_booking_order_id'
-			LEFT JOIN {$wpdb->postmeta} pm_customer ON p.ID = pm_customer.post_id AND pm_customer.meta_key = '_booking_customer_id'
-			LEFT JOIN {$wpdb->postmeta} pm_product ON p.ID = pm_product.post_id AND pm_product.meta_key = '_booking_product_id'
-			LEFT JOIN {$wpdb->postmeta} pm_cost ON p.ID = pm_cost.post_id AND pm_cost.meta_key = '_booking_cost'
-			LEFT JOIN {$wpdb->postmeta} pm_start ON p.ID = pm_start.post_id AND pm_start.meta_key = '_booking_start'
-			WHERE p.post_type = 'wc_booking'";
-
-		// Execute query based on the filter conditions
+		// Execute query based on the filter conditions using full SQL statements in each prepare call
 		if (!empty($status) && !empty($date_from) && !empty($date_to)) {
 			// Both status and date filters
 			$bookings = $wpdb->get_results($wpdb->prepare(
-				$base_query . " 
+				"SELECT p.ID, p.post_date, p.post_status, 
+				COALESCE(pm_order.meta_value, 0) as order_id,
+				COALESCE(pm_customer.meta_value, 0) as customer_id,
+				COALESCE(pm_product.meta_value, 0) as product_id,
+				COALESCE(pm_cost.meta_value, 0) as cost,
+				COALESCE(pm_start.meta_value, '') as start_date
+				FROM {$wpdb->posts} p
+				LEFT JOIN {$wpdb->postmeta} pm_order ON p.ID = pm_order.post_id AND pm_order.meta_key = '_booking_order_id'
+				LEFT JOIN {$wpdb->postmeta} pm_customer ON p.ID = pm_customer.post_id AND pm_customer.meta_key = '_booking_customer_id'
+				LEFT JOIN {$wpdb->postmeta} pm_product ON p.ID = pm_product.post_id AND pm_product.meta_key = '_booking_product_id'
+				LEFT JOIN {$wpdb->postmeta} pm_cost ON p.ID = pm_cost.post_id AND pm_cost.meta_key = '_booking_cost'
+				LEFT JOIN {$wpdb->postmeta} pm_start ON p.ID = pm_start.post_id AND pm_start.meta_key = '_booking_start'
+				WHERE p.post_type = 'wc_booking'
 				AND p.post_status = %s 
 				AND pm_start.meta_value BETWEEN %s AND %s
 				ORDER BY p.post_date DESC
@@ -1400,7 +1397,19 @@ class WC_Data_Cleanup_Admin {
 		} elseif (!empty($status)) {
 			// Only status filter
 			$bookings = $wpdb->get_results($wpdb->prepare(
-				$base_query . " 
+				"SELECT p.ID, p.post_date, p.post_status, 
+				COALESCE(pm_order.meta_value, 0) as order_id,
+				COALESCE(pm_customer.meta_value, 0) as customer_id,
+				COALESCE(pm_product.meta_value, 0) as product_id,
+				COALESCE(pm_cost.meta_value, 0) as cost,
+				COALESCE(pm_start.meta_value, '') as start_date
+				FROM {$wpdb->posts} p
+				LEFT JOIN {$wpdb->postmeta} pm_order ON p.ID = pm_order.post_id AND pm_order.meta_key = '_booking_order_id'
+				LEFT JOIN {$wpdb->postmeta} pm_customer ON p.ID = pm_customer.post_id AND pm_customer.meta_key = '_booking_customer_id'
+				LEFT JOIN {$wpdb->postmeta} pm_product ON p.ID = pm_product.post_id AND pm_product.meta_key = '_booking_product_id'
+				LEFT JOIN {$wpdb->postmeta} pm_cost ON p.ID = pm_cost.post_id AND pm_cost.meta_key = '_booking_cost'
+				LEFT JOIN {$wpdb->postmeta} pm_start ON p.ID = pm_start.post_id AND pm_start.meta_key = '_booking_start'
+				WHERE p.post_type = 'wc_booking'
 				AND p.post_status = %s
 				ORDER BY p.post_date DESC
 				LIMIT %d OFFSET %d",
@@ -1411,7 +1420,19 @@ class WC_Data_Cleanup_Admin {
 		} elseif (!empty($date_from) && !empty($date_to)) {
 			// Only date filter
 			$bookings = $wpdb->get_results($wpdb->prepare(
-				$base_query . " 
+				"SELECT p.ID, p.post_date, p.post_status, 
+				COALESCE(pm_order.meta_value, 0) as order_id,
+				COALESCE(pm_customer.meta_value, 0) as customer_id,
+				COALESCE(pm_product.meta_value, 0) as product_id,
+				COALESCE(pm_cost.meta_value, 0) as cost,
+				COALESCE(pm_start.meta_value, '') as start_date
+				FROM {$wpdb->posts} p
+				LEFT JOIN {$wpdb->postmeta} pm_order ON p.ID = pm_order.post_id AND pm_order.meta_key = '_booking_order_id'
+				LEFT JOIN {$wpdb->postmeta} pm_customer ON p.ID = pm_customer.post_id AND pm_customer.meta_key = '_booking_customer_id'
+				LEFT JOIN {$wpdb->postmeta} pm_product ON p.ID = pm_product.post_id AND pm_product.meta_key = '_booking_product_id'
+				LEFT JOIN {$wpdb->postmeta} pm_cost ON p.ID = pm_cost.post_id AND pm_cost.meta_key = '_booking_cost'
+				LEFT JOIN {$wpdb->postmeta} pm_start ON p.ID = pm_start.post_id AND pm_start.meta_key = '_booking_start'
+				WHERE p.post_type = 'wc_booking'
 				AND pm_start.meta_value BETWEEN %s AND %s
 				ORDER BY p.post_date DESC
 				LIMIT %d OFFSET %d",
@@ -1423,7 +1444,19 @@ class WC_Data_Cleanup_Admin {
 		} else {
 			// No filters
 			$bookings = $wpdb->get_results($wpdb->prepare(
-				$base_query . " 
+				"SELECT p.ID, p.post_date, p.post_status, 
+				COALESCE(pm_order.meta_value, 0) as order_id,
+				COALESCE(pm_customer.meta_value, 0) as customer_id,
+				COALESCE(pm_product.meta_value, 0) as product_id,
+				COALESCE(pm_cost.meta_value, 0) as cost,
+				COALESCE(pm_start.meta_value, '') as start_date
+				FROM {$wpdb->posts} p
+				LEFT JOIN {$wpdb->postmeta} pm_order ON p.ID = pm_order.post_id AND pm_order.meta_key = '_booking_order_id'
+				LEFT JOIN {$wpdb->postmeta} pm_customer ON p.ID = pm_customer.post_id AND pm_customer.meta_key = '_booking_customer_id'
+				LEFT JOIN {$wpdb->postmeta} pm_product ON p.ID = pm_product.post_id AND pm_product.meta_key = '_booking_product_id'
+				LEFT JOIN {$wpdb->postmeta} pm_cost ON p.ID = pm_cost.post_id AND pm_cost.meta_key = '_booking_cost'
+				LEFT JOIN {$wpdb->postmeta} pm_start ON p.ID = pm_start.post_id AND pm_start.meta_key = '_booking_start'
+				WHERE p.post_type = 'wc_booking'
 				ORDER BY p.post_date DESC
 				LIMIT %d OFFSET %d",
 				$limit,
