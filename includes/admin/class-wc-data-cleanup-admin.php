@@ -93,16 +93,16 @@ class WC_Data_Cleanup_Admin {
 			$product_name = '';
 			if ($booking->product_id) {
 				$product_post = get_post($booking->product_id);
-				$product_name = $product_post ? $product_post->post_title : __('(Unknown product)', 'wc-data-cleanup');
+				$product_name = $product_post ? $product_post->post_title : __('(Unknown product)', 'data-cleanup-for-woocommerce');
 			}
 			
 			// Get customer name
 			$customer_name = '';
 			if ($booking->customer_id) {
 				$customer = get_userdata($booking->customer_id);
-				$customer_name = $customer ? $customer->display_name : __('(Guest)', 'wc-data-cleanup');
+				$customer_name = $customer ? $customer->display_name : __('(Guest)', 'data-cleanup-for-woocommerce');
 			} else {
-				$customer_name = __('Guest', 'wc-data-cleanup');
+				$customer_name = __('Guest', 'data-cleanup-for-woocommerce');
 			}
 			
 			// Format dates
@@ -204,8 +204,8 @@ class WC_Data_Cleanup_Admin {
 	public function add_admin_menu() {
 		add_submenu_page(
 			'woocommerce',
-			__( 'Data Cleanup', 'wc-data-cleanup' ),
-			__( 'Data Cleanup', 'wc-data-cleanup' ),
+			__( 'Data Cleanup', 'data-cleanup-for-woocommerce' ),
+			__( 'Data Cleanup', 'data-cleanup-for-woocommerce' ),
 			'manage_woocommerce',
 			'wc-data-cleanup',
 			array( $this, 'render_admin_page' )
@@ -242,13 +242,13 @@ class WC_Data_Cleanup_Admin {
 			array(
 				'ajax_url'                  => admin_url( 'admin-ajax.php' ),
 				'nonce'                     => wp_create_nonce( 'wc-data-cleanup-nonce' ),
-				'confirm_delete_all'        => __( 'Are you sure you want to delete all items? This action cannot be undone!', 'wc-data-cleanup' ),
-				'confirm_delete_selected'   => __( 'Are you sure you want to delete the selected items? This action cannot be undone!', 'wc-data-cleanup' ),
-				'confirm_delete_except'     => __( 'Are you sure you want to delete all items except the selected ones? This action cannot be undone!', 'wc-data-cleanup' ),
-				'error_no_selection'        => __( 'Please select at least one item.', 'wc-data-cleanup' ),
-				'processing'                => __( 'Processing...', 'wc-data-cleanup' ),
-				'success'                   => __( 'Operation completed successfully.', 'wc-data-cleanup' ),
-				'error'                     => __( 'An error occurred.', 'wc-data-cleanup' ),
+				'confirm_delete_all'        => __( 'Are you sure you want to delete all items? This action cannot be undone!', 'data-cleanup-for-woocommerce' ),
+				'confirm_delete_selected'   => __( 'Are you sure you want to delete the selected items? This action cannot be undone!', 'data-cleanup-for-woocommerce' ),
+				'confirm_delete_except'     => __( 'Are you sure you want to delete all items except the selected ones? This action cannot be undone!', 'data-cleanup-for-woocommerce' ),
+				'error_no_selection'        => __( 'Please select at least one item.', 'data-cleanup-for-woocommerce' ),
+				'processing'                => __( 'Processing...', 'data-cleanup-for-woocommerce' ),
+				'success'                   => __( 'Operation completed successfully.', 'data-cleanup-for-woocommerce' ),
+				'error'                     => __( 'An error occurred.', 'data-cleanup-for-woocommerce' ),
 			)
 		);
 
@@ -269,21 +269,21 @@ class WC_Data_Cleanup_Admin {
 		$current_tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : 'users';
 		?>
 		<div class="wrap wc-data-cleanup">
-			<h1><?php esc_html_e( 'Data Cleanup for WooCommerce', 'wc-data-cleanup' ); ?></h1>
+			<h1><?php esc_html_e( 'Data Cleanup for WooCommerce', 'data-cleanup-for-woocommerce' ); ?></h1>
 			
 			<nav class="nav-tab-wrapper woo-nav-tab-wrapper">
 				<a href="<?php echo esc_url( admin_url( 'admin.php?page=wc-data-cleanup&tab=users' ) ); ?>" class="nav-tab <?php echo $current_tab === 'users' ? 'nav-tab-active' : ''; ?>">
-					<?php esc_html_e( 'Users', 'wc-data-cleanup' ); ?>
+					<?php esc_html_e( 'Users', 'data-cleanup-for-woocommerce' ); ?>
 				</a>
 				<a href="<?php echo esc_url( admin_url( 'admin.php?page=wc-data-cleanup&tab=customers' ) ); ?>" class="nav-tab <?php echo $current_tab === 'customers' ? 'nav-tab-active' : ''; ?>">
-					<?php esc_html_e( 'Customers', 'wc-data-cleanup' ); ?>
+					<?php esc_html_e( 'Customers', 'data-cleanup-for-woocommerce' ); ?>
 				</a>
 				<a href="<?php echo esc_url( admin_url( 'admin.php?page=wc-data-cleanup&tab=orders' ) ); ?>" class="nav-tab <?php echo $current_tab === 'orders' ? 'nav-tab-active' : ''; ?>">
-					<?php esc_html_e( 'Orders', 'wc-data-cleanup' ); ?>
+					<?php esc_html_e( 'Orders', 'data-cleanup-for-woocommerce' ); ?>
 				</a>
 				<?php if ( $this->is_bookings_active() ) : ?>
 				<a href="<?php echo esc_url( admin_url( 'admin.php?page=wc-data-cleanup&tab=bookings' ) ); ?>" class="nav-tab <?php echo $current_tab === 'bookings' ? 'nav-tab-active' : ''; ?>">
-					<?php esc_html_e( 'Bookings', 'wc-data-cleanup' ); ?>
+					<?php esc_html_e( 'Bookings', 'data-cleanup-for-woocommerce' ); ?>
 				</a>
 				<?php endif; ?>
 			</nav>
@@ -322,55 +322,55 @@ class WC_Data_Cleanup_Admin {
 	public function render_users_tab() {
 		?>
 		<div class="wc-data-cleanup-tab-content">
-			<h2><?php esc_html_e( 'WordPress Users Cleanup', 'wc-data-cleanup' ); ?></h2>
+			<h2><?php esc_html_e( 'WordPress Users Cleanup', 'data-cleanup-for-woocommerce' ); ?></h2>
 			
 			<div class="wc-data-cleanup-warning">
-				<p><strong><?php esc_html_e( 'Warning: Deleting users is a permanent action and cannot be undone. Please backup your database before proceeding.', 'wc-data-cleanup' ); ?></strong></p>
+				<p><strong><?php esc_html_e( 'Warning: Deleting users is a permanent action and cannot be undone. Please backup your database before proceeding.', 'data-cleanup-for-woocommerce' ); ?></strong></p>
 			</div>
 			
 			<div class="wc-data-cleanup-selection">
-				<h3><?php esc_html_e( 'Select Users', 'wc-data-cleanup' ); ?></h3>
-				<p class="description"><?php esc_html_e( 'Type to search for users or leave empty to see recent users. Select one or more users before using the "Delete Selected" or "Delete All Except Selected" options.', 'wc-data-cleanup' ); ?></p>
-				<select id="wc-data-cleanup-user-select" class="wc-data-cleanup-select" multiple="multiple" style="width: 100%;" data-placeholder="<?php esc_attr_e( 'Search for users...', 'wc-data-cleanup' ); ?>"></select>
+				<h3><?php esc_html_e( 'Select Users', 'data-cleanup-for-woocommerce' ); ?></h3>
+				<p class="description"><?php esc_html_e( 'Type to search for users or leave empty to see recent users. Select one or more users before using the "Delete Selected" or "Delete All Except Selected" options.', 'data-cleanup-for-woocommerce' ); ?></p>
+				<select id="wc-data-cleanup-user-select" class="wc-data-cleanup-select" multiple="multiple" style="width: 100%;" data-placeholder="<?php esc_attr_e( 'Search for users...', 'data-cleanup-for-woocommerce' ); ?>"></select>
 				
 							<div class="wc-data-cleanup-legend">
 				<div class="wc-data-cleanup-legend-item">
-					<span class="wc-data-cleanup-has-data wc-data-cleanup-has-orders"></span> <?php esc_html_e( 'Has orders', 'wc-data-cleanup' ); ?>
+					<span class="wc-data-cleanup-has-data wc-data-cleanup-has-orders"></span> <?php esc_html_e( 'Has orders', 'data-cleanup-for-woocommerce' ); ?>
 				</div>
 				<div class="wc-data-cleanup-legend-item">
-					<span class="wc-data-cleanup-has-data wc-data-cleanup-has-posts"></span> <?php esc_html_e( 'Has posts', 'wc-data-cleanup' ); ?>
+					<span class="wc-data-cleanup-has-data wc-data-cleanup-has-posts"></span> <?php esc_html_e( 'Has posts', 'data-cleanup-for-woocommerce' ); ?>
 				</div>
 				<div class="wc-data-cleanup-legend-item">
-					<span class="wc-data-cleanup-has-data wc-data-cleanup-has-comments"></span> <?php esc_html_e( 'Has comments', 'wc-data-cleanup' ); ?>
+					<span class="wc-data-cleanup-has-data wc-data-cleanup-has-comments"></span> <?php esc_html_e( 'Has comments', 'data-cleanup-for-woocommerce' ); ?>
 				</div>
 				<div class="wc-data-cleanup-legend-item wc-data-cleanup-legend-note">
-					<?php esc_html_e( '(Indicators appear when a user is selected)', 'wc-data-cleanup' ); ?>
+					<?php esc_html_e( '(Indicators appear when a user is selected)', 'data-cleanup-for-woocommerce' ); ?>
 				</div>
 			</div>
 			</div>
 			
 			<div class="wc-data-cleanup-actions">
-				<h3><?php esc_html_e( 'Bulk Actions', 'wc-data-cleanup' ); ?></h3>
+				<h3><?php esc_html_e( 'Bulk Actions', 'data-cleanup-for-woocommerce' ); ?></h3>
 				
 				<div class="wc-data-cleanup-action-group">
 					<button type="button" class="button button-primary wc-data-cleanup-delete-all-users">
-						<?php esc_html_e( 'Delete All Users with Customer Role', 'wc-data-cleanup' ); ?>
+						<?php esc_html_e( 'Delete All Users with Customer Role', 'data-cleanup-for-woocommerce' ); ?>
 					</button>
-					<span class="wc-data-cleanup-help"><?php esc_html_e( 'Deletes all WordPress users with the "Customer" role.', 'wc-data-cleanup' ); ?></span>
+					<span class="wc-data-cleanup-help"><?php esc_html_e( 'Deletes all WordPress users with the "Customer" role.', 'data-cleanup-for-woocommerce' ); ?></span>
 				</div>
 				
 				<div class="wc-data-cleanup-action-group">
 					<button type="button" class="button wc-data-cleanup-delete-selected-users">
-						<?php esc_html_e( 'Delete Selected Users', 'wc-data-cleanup' ); ?>
+						<?php esc_html_e( 'Delete Selected Users', 'data-cleanup-for-woocommerce' ); ?>
 					</button>
-					<span class="wc-data-cleanup-help"><?php esc_html_e( 'Deletes only the selected users from the search box above.', 'wc-data-cleanup' ); ?></span>
+					<span class="wc-data-cleanup-help"><?php esc_html_e( 'Deletes only the selected users from the search box above.', 'data-cleanup-for-woocommerce' ); ?></span>
 				</div>
 				
 				<div class="wc-data-cleanup-action-group">
 					<button type="button" class="button wc-data-cleanup-delete-except-users">
-						<?php esc_html_e( 'Delete All Except Selected', 'wc-data-cleanup' ); ?>
+						<?php esc_html_e( 'Delete All Except Selected', 'data-cleanup-for-woocommerce' ); ?>
 					</button>
-					<span class="wc-data-cleanup-help"><?php esc_html_e( 'Deletes all users except the ones selected in the search box above.', 'wc-data-cleanup' ); ?></span>
+					<span class="wc-data-cleanup-help"><?php esc_html_e( 'Deletes all users except the ones selected in the search box above.', 'data-cleanup-for-woocommerce' ); ?></span>
 				</div>
 			</div>
 			
@@ -388,49 +388,49 @@ class WC_Data_Cleanup_Admin {
 	public function render_customers_tab() {
 		?>
 		<div class="wc-data-cleanup-tab-content">
-			<h2><?php esc_html_e( 'WooCommerce Customers Cleanup', 'wc-data-cleanup' ); ?></h2>
+			<h2><?php esc_html_e( 'WooCommerce Customers Cleanup', 'data-cleanup-for-woocommerce' ); ?></h2>
 			
 			<div class="wc-data-cleanup-warning">
-				<p><strong><?php esc_html_e( 'Warning: Deleting customers is a permanent action and cannot be undone. Please backup your database before proceeding.', 'wc-data-cleanup' ); ?></strong></p>
+				<p><strong><?php esc_html_e( 'Warning: Deleting customers is a permanent action and cannot be undone. Please backup your database before proceeding.', 'data-cleanup-for-woocommerce' ); ?></strong></p>
 			</div>
 			
 			<div class="wc-data-cleanup-selection">
-				<h3><?php esc_html_e( 'Select Customers', 'wc-data-cleanup' ); ?></h3>
-				<p class="description"><?php esc_html_e( 'Type to search for customers or leave empty to see recent customers. Select one or more customers before using the "Delete Selected" or "Delete All Except Selected" options.', 'wc-data-cleanup' ); ?></p>
-				<select id="wc-data-cleanup-customer-select" class="wc-data-cleanup-select" multiple="multiple" style="width: 100%;" data-placeholder="<?php esc_attr_e( 'Search for customers...', 'wc-data-cleanup' ); ?>"></select>
+				<h3><?php esc_html_e( 'Select Customers', 'data-cleanup-for-woocommerce' ); ?></h3>
+				<p class="description"><?php esc_html_e( 'Type to search for customers or leave empty to see recent customers. Select one or more customers before using the "Delete Selected" or "Delete All Except Selected" options.', 'data-cleanup-for-woocommerce' ); ?></p>
+				<select id="wc-data-cleanup-customer-select" class="wc-data-cleanup-select" multiple="multiple" style="width: 100%;" data-placeholder="<?php esc_attr_e( 'Search for customers...', 'data-cleanup-for-woocommerce' ); ?>"></select>
 				
 				<div class="wc-data-cleanup-legend">
 					<div class="wc-data-cleanup-legend-item">
-						<span class="wc-data-cleanup-has-data wc-data-cleanup-has-orders"></span> <?php esc_html_e( 'Has orders', 'wc-data-cleanup' ); ?>
+						<span class="wc-data-cleanup-has-data wc-data-cleanup-has-orders"></span> <?php esc_html_e( 'Has orders', 'data-cleanup-for-woocommerce' ); ?>
 					</div>
 					<div class="wc-data-cleanup-legend-item wc-data-cleanup-legend-note">
-						<?php esc_html_e( '(Indicator appears when a customer is selected)', 'wc-data-cleanup' ); ?>
+						<?php esc_html_e( '(Indicator appears when a customer is selected)', 'data-cleanup-for-woocommerce' ); ?>
 					</div>
 				</div>
 			</div>
 			
 			<div class="wc-data-cleanup-actions">
-				<h3><?php esc_html_e( 'Bulk Actions', 'wc-data-cleanup' ); ?></h3>
+				<h3><?php esc_html_e( 'Bulk Actions', 'data-cleanup-for-woocommerce' ); ?></h3>
 				
 				<div class="wc-data-cleanup-action-group">
 					<button type="button" class="button button-primary wc-data-cleanup-delete-all-customers">
-						<?php esc_html_e( 'Delete All Customers', 'wc-data-cleanup' ); ?>
+						<?php esc_html_e( 'Delete All Customers', 'data-cleanup-for-woocommerce' ); ?>
 					</button>
-					<span class="wc-data-cleanup-help"><?php esc_html_e( 'Deletes all WooCommerce customers.', 'wc-data-cleanup' ); ?></span>
+					<span class="wc-data-cleanup-help"><?php esc_html_e( 'Deletes all WooCommerce customers.', 'data-cleanup-for-woocommerce' ); ?></span>
 				</div>
 				
 				<div class="wc-data-cleanup-action-group">
 					<button type="button" class="button wc-data-cleanup-delete-selected-customers">
-						<?php esc_html_e( 'Delete Selected Customers', 'wc-data-cleanup' ); ?>
+						<?php esc_html_e( 'Delete Selected Customers', 'data-cleanup-for-woocommerce' ); ?>
 					</button>
-					<span class="wc-data-cleanup-help"><?php esc_html_e( 'Deletes only the selected customers from the search box above.', 'wc-data-cleanup' ); ?></span>
+					<span class="wc-data-cleanup-help"><?php esc_html_e( 'Deletes only the selected customers from the search box above.', 'data-cleanup-for-woocommerce' ); ?></span>
 				</div>
 				
 				<div class="wc-data-cleanup-action-group">
 					<button type="button" class="button wc-data-cleanup-delete-except-customers">
-						<?php esc_html_e( 'Delete All Except Selected', 'wc-data-cleanup' ); ?>
+						<?php esc_html_e( 'Delete All Except Selected', 'data-cleanup-for-woocommerce' ); ?>
 					</button>
-					<span class="wc-data-cleanup-help"><?php esc_html_e( 'Deletes all customers except the ones selected in the search box above.', 'wc-data-cleanup' ); ?></span>
+					<span class="wc-data-cleanup-help"><?php esc_html_e( 'Deletes all customers except the ones selected in the search box above.', 'data-cleanup-for-woocommerce' ); ?></span>
 				</div>
 			</div>
 			
@@ -451,46 +451,46 @@ class WC_Data_Cleanup_Admin {
 		$order_statuses = $orders_handler->get_order_statuses();
 		?>
 		<div class="wc-data-cleanup-tab-content">
-			<h2><?php esc_html_e( 'WooCommerce Orders Cleanup', 'wc-data-cleanup' ); ?></h2>
+			<h2><?php esc_html_e( 'WooCommerce Orders Cleanup', 'data-cleanup-for-woocommerce' ); ?></h2>
 			
 			<div class="wc-data-cleanup-warning">
-				<p><strong><?php esc_html_e( 'Warning: Deleting orders is a permanent action and cannot be undone. Please backup your database before proceeding.', 'wc-data-cleanup' ); ?></strong></p>
+				<p><strong><?php esc_html_e( 'Warning: Deleting orders is a permanent action and cannot be undone. Please backup your database before proceeding.', 'data-cleanup-for-woocommerce' ); ?></strong></p>
 			</div>
 			
 			<div class="wc-data-cleanup-selection">
-				<h3><?php esc_html_e( 'Select Orders', 'wc-data-cleanup' ); ?></h3>
-				<p class="description"><?php esc_html_e( 'Type to search for orders by ID or customer name, or leave empty to see recent orders. Select one or more orders before using the "Delete Selected" or "Delete All Except Selected" options.', 'wc-data-cleanup' ); ?></p>
-				<select id="wc-data-cleanup-order-select" class="wc-data-cleanup-select" multiple="multiple" style="width: 100%;" data-placeholder="<?php esc_attr_e( 'Search for orders...', 'wc-data-cleanup' ); ?>"></select>
+				<h3><?php esc_html_e( 'Select Orders', 'data-cleanup-for-woocommerce' ); ?></h3>
+				<p class="description"><?php esc_html_e( 'Type to search for orders by ID or customer name, or leave empty to see recent orders. Select one or more orders before using the "Delete Selected" or "Delete All Except Selected" options.', 'data-cleanup-for-woocommerce' ); ?></p>
+				<select id="wc-data-cleanup-order-select" class="wc-data-cleanup-select" multiple="multiple" style="width: 100%;" data-placeholder="<?php esc_attr_e( 'Search for orders...', 'data-cleanup-for-woocommerce' ); ?>"></select>
 			</div>
 			
 			<div class="wc-data-cleanup-actions">
-				<h3><?php esc_html_e( 'Bulk Actions', 'wc-data-cleanup' ); ?></h3>
+				<h3><?php esc_html_e( 'Bulk Actions', 'data-cleanup-for-woocommerce' ); ?></h3>
 				
 				<div class="wc-data-cleanup-action-group">
 					<button type="button" class="button button-primary wc-data-cleanup-delete-all-orders">
-						<?php esc_html_e( 'Delete All Orders', 'wc-data-cleanup' ); ?>
+						<?php esc_html_e( 'Delete All Orders', 'data-cleanup-for-woocommerce' ); ?>
 					</button>
-					<span class="wc-data-cleanup-help"><?php esc_html_e( 'Deletes all WooCommerce orders.', 'wc-data-cleanup' ); ?></span>
+					<span class="wc-data-cleanup-help"><?php esc_html_e( 'Deletes all WooCommerce orders.', 'data-cleanup-for-woocommerce' ); ?></span>
 				</div>
 				
 				<div class="wc-data-cleanup-action-group">
 					<button type="button" class="button wc-data-cleanup-delete-selected-orders">
-						<?php esc_html_e( 'Delete Selected Orders', 'wc-data-cleanup' ); ?>
+						<?php esc_html_e( 'Delete Selected Orders', 'data-cleanup-for-woocommerce' ); ?>
 					</button>
-					<span class="wc-data-cleanup-help"><?php esc_html_e( 'Deletes only the selected orders from the search box above.', 'wc-data-cleanup' ); ?></span>
+					<span class="wc-data-cleanup-help"><?php esc_html_e( 'Deletes only the selected orders from the search box above.', 'data-cleanup-for-woocommerce' ); ?></span>
 				</div>
 				
 				<div class="wc-data-cleanup-action-group">
 					<button type="button" class="button wc-data-cleanup-delete-except-orders">
-						<?php esc_html_e( 'Delete All Except Selected', 'wc-data-cleanup' ); ?>
+						<?php esc_html_e( 'Delete All Except Selected', 'data-cleanup-for-woocommerce' ); ?>
 					</button>
-					<span class="wc-data-cleanup-help"><?php esc_html_e( 'Deletes all orders except the ones selected in the search box above.', 'wc-data-cleanup' ); ?></span>
+					<span class="wc-data-cleanup-help"><?php esc_html_e( 'Deletes all orders except the ones selected in the search box above.', 'data-cleanup-for-woocommerce' ); ?></span>
 				</div>
 				
 				<div class="wc-data-cleanup-action-group">
-					<h4><?php esc_html_e( 'Delete by Status', 'wc-data-cleanup' ); ?></h4>
+					<h4><?php esc_html_e( 'Delete by Status', 'data-cleanup-for-woocommerce' ); ?></h4>
 					<select id="wc-data-cleanup-order-status" class="wc-data-cleanup-select-status">
-						<option value=""><?php esc_html_e( 'Select status...', 'wc-data-cleanup' ); ?></option>
+						<option value=""><?php esc_html_e( 'Select status...', 'data-cleanup-for-woocommerce' ); ?></option>
 						<?php foreach ( $order_statuses as $status ) : ?>
 							<option value="<?php echo esc_attr( $status['id'] ); ?>">
 								<?php echo esc_html( $status['text'] ); ?> (<?php echo esc_html( $status['count'] ); ?>)
@@ -498,22 +498,22 @@ class WC_Data_Cleanup_Admin {
 						<?php endforeach; ?>
 					</select>
 					<button type="button" class="button wc-data-cleanup-delete-by-status">
-						<?php esc_html_e( 'Delete Orders with Selected Status', 'wc-data-cleanup' ); ?>
+						<?php esc_html_e( 'Delete Orders with Selected Status', 'data-cleanup-for-woocommerce' ); ?>
 					</button>
 				</div>
 				
 				<div class="wc-data-cleanup-action-group">
-					<h4><?php esc_html_e( 'Delete by Date Range', 'wc-data-cleanup' ); ?></h4>
-					<label for="wc-data-cleanup-date-from"><?php esc_html_e( 'From:', 'wc-data-cleanup' ); ?></label>
+					<h4><?php esc_html_e( 'Delete by Date Range', 'data-cleanup-for-woocommerce' ); ?></h4>
+					<label for="wc-data-cleanup-date-from"><?php esc_html_e( 'From:', 'data-cleanup-for-woocommerce' ); ?></label>
 					<input type="date" id="wc-data-cleanup-date-from" class="wc-data-cleanup-date" />
 					<span class="dashicons dashicons-calendar-alt"></span>
 					
-					<label for="wc-data-cleanup-date-to"><?php esc_html_e( 'To:', 'wc-data-cleanup' ); ?></label>
+					<label for="wc-data-cleanup-date-to"><?php esc_html_e( 'To:', 'data-cleanup-for-woocommerce' ); ?></label>
 					<input type="date" id="wc-data-cleanup-date-to" class="wc-data-cleanup-date" />
 					<span class="dashicons dashicons-calendar-alt"></span>
 					
 					<button type="button" class="button wc-data-cleanup-delete-by-date-range">
-						<?php esc_html_e( 'Delete Orders in Date Range', 'wc-data-cleanup' ); ?>
+						<?php esc_html_e( 'Delete Orders in Date Range', 'data-cleanup-for-woocommerce' ); ?>
 					</button>
 				</div>
 			</div>
@@ -558,23 +558,28 @@ class WC_Data_Cleanup_Admin {
 		}
 		?>
 		<div class="wc-data-cleanup-tab-content">
-			<h2><?php esc_html_e( 'WooCommerce Bookings Cleanup', 'wc-data-cleanup' ); ?></h2>
+			<h2><?php esc_html_e( 'WooCommerce Bookings Cleanup', 'data-cleanup-for-woocommerce' ); ?></h2>
 			
 			<div class="wc-data-cleanup-warning">
-				<p><strong><?php esc_html_e( 'Warning: Deleting bookings is a permanent action and cannot be undone. Please backup your database before proceeding.', 'wc-data-cleanup' ); ?></strong></p>
+				<p><strong><?php esc_html_e( 'Warning: Deleting bookings is a permanent action and cannot be undone. Please backup your database before proceeding.', 'data-cleanup-for-woocommerce' ); ?></strong></p>
 			</div>
 			
 			<div class="wc-data-cleanup-status-summary">
-				<h3><?php esc_html_e( 'Booking Status Summary', 'wc-data-cleanup' ); ?></h3>
-				<p><?php printf( esc_html__( 'Total Bookings: %d', 'wc-data-cleanup' ), $total_bookings ); ?></p>
+				<h3><?php esc_html_e( 'Booking Status Summary', 'data-cleanup-for-woocommerce' ); ?></h3>
+				<p>
+					<?php
+					// translators: %d is the total number of bookings.
+					printf( esc_html__( 'Total Bookings: %d', 'data-cleanup-for-woocommerce' ), $total_bookings );
+					?>
+				</p>
 				
 				<?php if (!empty($booking_counts)): ?>
 					<table class="wp-list-table widefat fixed striped bookings-status-summary">
 						<thead>
 							<tr>
-								<th><?php esc_html_e( 'Status', 'wc-data-cleanup' ); ?></th>
-								<th><?php esc_html_e( 'Count', 'wc-data-cleanup' ); ?></th>
-								<th><?php esc_html_e( 'Action', 'wc-data-cleanup' ); ?></th>
+								<th><?php esc_html_e( 'Status', 'data-cleanup-for-woocommerce' ); ?></th>
+								<th><?php esc_html_e( 'Count', 'data-cleanup-for-woocommerce' ); ?></th>
+								<th><?php esc_html_e( 'Action', 'data-cleanup-for-woocommerce' ); ?></th>
 							</tr>
 						</thead>
 						<tbody>
@@ -584,7 +589,7 @@ class WC_Data_Cleanup_Admin {
 							$statuses = $bookings_handler->get_booking_statuses();
 							
 							if ( empty( $statuses ) ) {
-								echo '<tr><td colspan="3">' . esc_html__( 'No bookings found.', 'wc-data-cleanup' ) . '</td></tr>';
+								echo '<tr><td colspan="3">' . esc_html__( 'No bookings found.', 'data-cleanup-for-woocommerce' ) . '</td></tr>';
 							} else {
 								foreach ( $statuses as $status ) {
 									?>
@@ -593,7 +598,7 @@ class WC_Data_Cleanup_Admin {
 										<td><?php echo esc_html( $status['count'] ); ?></td>
 										<td>
 											<button type="button" class="button wc-data-cleanup-preview-bookings-by-status" data-status="<?php echo esc_attr( $status['id'] ); ?>">
-												<?php esc_html_e( 'List Bookings', 'wc-data-cleanup' ); ?>
+												<?php esc_html_e( 'List Bookings', 'data-cleanup-for-woocommerce' ); ?>
 											</button>
 										</td>
 									</tr>
@@ -604,41 +609,41 @@ class WC_Data_Cleanup_Admin {
 						</tbody>
 					</table>
 				<?php else: ?>
-					<p><?php esc_html_e( 'No bookings found.', 'wc-data-cleanup' ); ?></p>
+					<p><?php esc_html_e( 'No bookings found.', 'data-cleanup-for-woocommerce' ); ?></p>
 				<?php endif; ?>
 				
 				<!-- Bookings Preview Section -->
 				<div class="wc-data-cleanup-bookings-preview">
 					<div class="wc-data-cleanup-preview-header">
-						<h4 class="wc-data-cleanup-preview-title"><?php esc_html_e( 'Bookings List', 'wc-data-cleanup' ); ?> <span class="wc-data-cleanup-preview-badge">0</span></h4>
+						<h4 class="wc-data-cleanup-preview-title"><?php esc_html_e( 'Bookings List', 'data-cleanup-for-woocommerce' ); ?> <span class="wc-data-cleanup-preview-badge">0</span></h4>
 						<div class="wc-data-cleanup-preview-controls">
 							<div class="wc-data-cleanup-checkbox-controls">
-								<label><input type="checkbox" id="booking-select-all"> <?php esc_html_e( 'Select All', 'wc-data-cleanup' ); ?></label>
+								<label><input type="checkbox" id="booking-select-all"> <?php esc_html_e( 'Select All', 'data-cleanup-for-woocommerce' ); ?></label>
 								<span class="selection-count">0</span>
 							</div>
-							<button type="button" class="button button-small wc-data-cleanup-close-preview"><?php esc_html_e( 'Close', 'wc-data-cleanup' ); ?></button>
+							<button type="button" class="button button-small wc-data-cleanup-close-preview"><?php esc_html_e( 'Close', 'data-cleanup-for-woocommerce' ); ?></button>
 						</div>
 					</div>
 					
 					<div class="wc-data-cleanup-bookings-list">
 						<div class="wc-data-cleanup-loading">
 							<span class="spinner is-active"></span>
-							<p><?php esc_html_e( 'Loading bookings...', 'wc-data-cleanup' ); ?></p>
+							<p><?php esc_html_e( 'Loading bookings...', 'data-cleanup-for-woocommerce' ); ?></p>
 						</div>
 						<div class="wc-data-cleanup-no-bookings" style="display:none;">
-							<p><?php esc_html_e( 'No bookings found matching your criteria.', 'wc-data-cleanup' ); ?></p>
+							<p><?php esc_html_e( 'No bookings found matching your criteria.', 'data-cleanup-for-woocommerce' ); ?></p>
 						</div>
 						<table class="wc-data-cleanup-bookings-table widefat striped" style="display:none;">
 							<thead>
 								<tr>
 									<th width="30"><input type="checkbox" id="booking-select-all"></th>
-									<th width="60"><?php esc_html_e( 'ID', 'wc-data-cleanup' ); ?></th>
-									<th width="130"><?php esc_html_e( 'Date', 'wc-data-cleanup' ); ?></th>
-									<th width="130"><?php esc_html_e( 'Status', 'wc-data-cleanup' ); ?></th>
-									<th><?php esc_html_e( 'Product', 'wc-data-cleanup' ); ?></th>
-									<th width="150"><?php esc_html_e( 'Customer', 'wc-data-cleanup' ); ?></th>
-									<th width="100"><?php esc_html_e( 'Cost', 'wc-data-cleanup' ); ?></th>
-									<th width="150"><?php esc_html_e( 'Start Date', 'wc-data-cleanup' ); ?></th>
+									<th width="60"><?php esc_html_e( 'ID', 'data-cleanup-for-woocommerce' ); ?></th>
+									<th width="130"><?php esc_html_e( 'Date', 'data-cleanup-for-woocommerce' ); ?></th>
+									<th width="130"><?php esc_html_e( 'Status', 'data-cleanup-for-woocommerce' ); ?></th>
+									<th><?php esc_html_e( 'Product', 'data-cleanup-for-woocommerce' ); ?></th>
+									<th width="150"><?php esc_html_e( 'Customer', 'data-cleanup-for-woocommerce' ); ?></th>
+									<th width="100"><?php esc_html_e( 'Cost', 'data-cleanup-for-woocommerce' ); ?></th>
+									<th width="150"><?php esc_html_e( 'Start Date', 'data-cleanup-for-woocommerce' ); ?></th>
 								</tr>
 							</thead>
 							<tbody>
@@ -647,73 +652,73 @@ class WC_Data_Cleanup_Admin {
 					</div>
 					<div class="wc-data-cleanup-bookings-pagination"></div>
 					<div class="wc-data-cleanup-action-buttons">
-						<button type="button" class="button button-primary wc-data-cleanup-delete-selected-bookings" disabled><?php esc_html_e( 'Delete Selected Bookings', 'wc-data-cleanup' ); ?></button>
+						<button type="button" class="button button-primary wc-data-cleanup-delete-selected-bookings" disabled><?php esc_html_e( 'Delete Selected Bookings', 'data-cleanup-for-woocommerce' ); ?></button>
 					</div>
 				</div>
 			</div>
 			
 			<div class="wc-data-cleanup-actions">
-				<h3><?php esc_html_e( 'Bulk Actions', 'wc-data-cleanup' ); ?></h3>
+				<h3><?php esc_html_e( 'Bulk Actions', 'data-cleanup-for-woocommerce' ); ?></h3>
 				
 				<div class="wc-data-cleanup-action-group">
 					<button type="button" class="button button-primary wc-data-cleanup-delete-all-bookings" <?php echo $total_bookings > 0 ? '' : 'disabled'; ?>>
-						<?php esc_html_e( 'Delete All Bookings', 'wc-data-cleanup' ); ?>
+						<?php esc_html_e( 'Delete All Bookings', 'data-cleanup-for-woocommerce' ); ?>
 					</button>
-					<span class="wc-data-cleanup-help"><?php esc_html_e( 'Deletes all WooCommerce bookings.', 'wc-data-cleanup' ); ?></span>
+					<span class="wc-data-cleanup-help"><?php esc_html_e( 'Deletes all WooCommerce bookings.', 'data-cleanup-for-woocommerce' ); ?></span>
 				</div>
 				
 				<div class="wc-data-cleanup-action-group">
-					<h4><?php esc_html_e( 'Delete by Date Range', 'wc-data-cleanup' ); ?></h4>
+					<h4><?php esc_html_e( 'Delete by Date Range', 'data-cleanup-for-woocommerce' ); ?></h4>
 					<div class="date-range-selector">
-						<label for="wc-data-cleanup-booking-date-from"><?php esc_html_e( 'From:', 'wc-data-cleanup' ); ?></label>
+						<label for="wc-data-cleanup-booking-date-from"><?php esc_html_e( 'From:', 'data-cleanup-for-woocommerce' ); ?></label>
 						<input type="date" id="wc-data-cleanup-booking-date-from" class="wc-data-cleanup-date" />
 						<span class="dashicons dashicons-calendar-alt"></span>
 						
-						<label for="wc-data-cleanup-booking-date-to"><?php esc_html_e( 'To:', 'wc-data-cleanup' ); ?></label>
+						<label for="wc-data-cleanup-booking-date-to"><?php esc_html_e( 'To:', 'data-cleanup-for-woocommerce' ); ?></label>
 						<input type="date" id="wc-data-cleanup-booking-date-to" class="wc-data-cleanup-date" />
 						<span class="dashicons dashicons-calendar-alt"></span>
 						
 						<button type="button" class="button wc-data-cleanup-preview-bookings-by-date-range">
-							<?php esc_html_e( 'Show Bookings', 'wc-data-cleanup' ); ?>
+							<?php esc_html_e( 'Show Bookings', 'data-cleanup-for-woocommerce' ); ?>
 						</button>
 						
 						<button type="button" class="button wc-data-cleanup-delete-bookings-by-date-range">
-							<?php esc_html_e( 'Delete Bookings in Date Range', 'wc-data-cleanup' ); ?>
+							<?php esc_html_e( 'Delete Bookings in Date Range', 'data-cleanup-for-woocommerce' ); ?>
 						</button>
 					</div>
 					
 					<!-- Date range preview section -->
 					<div class="wc-data-cleanup-date-bookings-preview" style="display:none;">
 						<div class="wc-data-cleanup-preview-header">
-							<h4 class="wc-data-cleanup-date-preview-title"><?php esc_html_e( 'Bookings in Selected Date Range', 'wc-data-cleanup' ); ?> <span class="wc-data-cleanup-date-preview-badge">0</span></h4>
+							<h4 class="wc-data-cleanup-date-preview-title"><?php esc_html_e( 'Bookings in Selected Date Range', 'data-cleanup-for-woocommerce' ); ?> <span class="wc-data-cleanup-date-preview-badge">0</span></h4>
 							<div class="wc-data-cleanup-preview-controls">
 								<div class="wc-data-cleanup-checkbox-controls">
-									<label><input type="checkbox" id="date-booking-select-all"> <?php esc_html_e( 'Select All', 'wc-data-cleanup' ); ?></label>
+									<label><input type="checkbox" id="date-booking-select-all"> <?php esc_html_e( 'Select All', 'data-cleanup-for-woocommerce' ); ?></label>
 									<span class="date-selection-count">0</span>
 								</div>
-								<button type="button" class="button button-small wc-data-cleanup-close-date-preview"><?php esc_html_e( 'Close', 'wc-data-cleanup' ); ?></button>
+								<button type="button" class="button button-small wc-data-cleanup-close-date-preview"><?php esc_html_e( 'Close', 'data-cleanup-for-woocommerce' ); ?></button>
 							</div>
 						</div>
 						
 						<div class="wc-data-cleanup-date-bookings-list">
 							<div class="wc-data-cleanup-loading">
 								<span class="spinner is-active"></span>
-								<p><?php esc_html_e( 'Loading bookings...', 'wc-data-cleanup' ); ?></p>
+								<p><?php esc_html_e( 'Loading bookings...', 'data-cleanup-for-woocommerce' ); ?></p>
 							</div>
 							<div class="wc-data-cleanup-no-bookings" style="display:none;">
-								<p><?php esc_html_e( 'No bookings found in this date range.', 'wc-data-cleanup' ); ?></p>
+								<p><?php esc_html_e( 'No bookings found in this date range.', 'data-cleanup-for-woocommerce' ); ?></p>
 							</div>
 							<table class="wc-data-cleanup-date-bookings-table widefat striped" style="display:none;">
 								<thead>
 									<tr>
 										<th width="30"><input type="checkbox" id="date-range-select-all"></th>
-										<th width="60"><?php esc_html_e( 'ID', 'wc-data-cleanup' ); ?></th>
-										<th width="130"><?php esc_html_e( 'Date', 'wc-data-cleanup' ); ?></th>
-										<th width="130"><?php esc_html_e( 'Status', 'wc-data-cleanup' ); ?></th>
-										<th><?php esc_html_e( 'Product', 'wc-data-cleanup' ); ?></th>
-										<th width="150"><?php esc_html_e( 'Customer', 'wc-data-cleanup' ); ?></th>
-										<th width="100"><?php esc_html_e( 'Cost', 'wc-data-cleanup' ); ?></th>
-										<th width="150"><?php esc_html_e( 'Start Date', 'wc-data-cleanup' ); ?></th>
+										<th width="60"><?php esc_html_e( 'ID', 'data-cleanup-for-woocommerce' ); ?></th>
+										<th width="130"><?php esc_html_e( 'Date', 'data-cleanup-for-woocommerce' ); ?></th>
+										<th width="130"><?php esc_html_e( 'Status', 'data-cleanup-for-woocommerce' ); ?></th>
+										<th><?php esc_html_e( 'Product', 'data-cleanup-for-woocommerce' ); ?></th>
+										<th width="150"><?php esc_html_e( 'Customer', 'data-cleanup-for-woocommerce' ); ?></th>
+										<th width="100"><?php esc_html_e( 'Cost', 'data-cleanup-for-woocommerce' ); ?></th>
+										<th width="150"><?php esc_html_e( 'Start Date', 'data-cleanup-for-woocommerce' ); ?></th>
 									</tr>
 								</thead>
 								<tbody>
@@ -722,18 +727,18 @@ class WC_Data_Cleanup_Admin {
 						</div>
 						<div class="wc-data-cleanup-date-bookings-pagination"></div>
 						<div class="wc-data-cleanup-date-action-buttons">
-							<button type="button" class="button button-primary wc-data-cleanup-delete-selected-date-bookings" disabled><?php esc_html_e( 'Delete Selected Bookings', 'wc-data-cleanup' ); ?></button>
+							<button type="button" class="button button-primary wc-data-cleanup-delete-selected-date-bookings" disabled><?php esc_html_e( 'Delete Selected Bookings', 'data-cleanup-for-woocommerce' ); ?></button>
 						</div>
 					</div>
 				</div>
 				
 				<div class="wc-data-cleanup-action-group">
-					<h4><?php esc_html_e( 'Related Orders', 'wc-data-cleanup' ); ?></h4>
+					<h4><?php esc_html_e( 'Related Orders', 'data-cleanup-for-woocommerce' ); ?></h4>
 					<label>
 						<input type="checkbox" id="wc-data-cleanup-booking-delete-orders" />
-						<?php esc_html_e( 'Also delete related orders when deleting bookings', 'wc-data-cleanup' ); ?>
+						<?php esc_html_e( 'Also delete related orders when deleting bookings', 'data-cleanup-for-woocommerce' ); ?>
 					</label>
-					<p class="description"><?php esc_html_e( 'Note: An order will only be deleted if all its associated bookings are being deleted.', 'wc-data-cleanup' ); ?></p>
+					<p class="description"><?php esc_html_e( 'Note: An order will only be deleted if all its associated bookings are being deleted.', 'data-cleanup-for-woocommerce' ); ?></p>
 				</div>
 			</div>
 			
@@ -769,12 +774,12 @@ class WC_Data_Cleanup_Admin {
 	public function ajax_delete_users() {
 		// Check nonce
 		if ( ! check_ajax_referer( 'wc-data-cleanup-nonce', 'nonce', false ) ) {
-			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'wc-data-cleanup' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
 		// Check permissions
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'You do not have permission to perform this action.', 'wc-data-cleanup' ) ) );
+			wp_send_json_error( array( 'message' => __( 'You do not have permission to perform this action.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
 		$action = isset( $_POST['action_type'] ) ? sanitize_text_field( wp_unslash( $_POST['action_type'] ) ) : '';
@@ -805,7 +810,7 @@ class WC_Data_Cleanup_Admin {
 				$result = $users_handler->delete_all_except_selected_users( $user_ids, $sanitized_options );
 				break;
 			default:
-				wp_send_json_error( array( 'message' => __( 'Invalid action.', 'wc-data-cleanup' ) ) );
+				wp_send_json_error( array( 'message' => __( 'Invalid action.', 'data-cleanup-for-woocommerce' ) ) );
 				break;
 		}
 
@@ -815,7 +820,7 @@ class WC_Data_Cleanup_Admin {
 			wp_send_json_success( array(
 				'message' => sprintf(
 					/* translators: %d: number of deleted users */
-					__( 'Successfully deleted %d users.', 'wc-data-cleanup' ),
+					__( 'Successfully deleted %d users.', 'data-cleanup-for-woocommerce' ),
 					$result['deleted']
 				),
 				'count' => $result['deleted'],
@@ -831,12 +836,12 @@ class WC_Data_Cleanup_Admin {
 	public function ajax_delete_customers() {
 		// Check nonce
 		if ( ! check_ajax_referer( 'wc-data-cleanup-nonce', 'nonce', false ) ) {
-			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'wc-data-cleanup' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
 		// Check permissions
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'You do not have permission to perform this action.', 'wc-data-cleanup' ) ) );
+			wp_send_json_error( array( 'message' => __( 'You do not have permission to perform this action.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
 		$action = isset( $_POST['action_type'] ) ? sanitize_text_field( wp_unslash( $_POST['action_type'] ) ) : '';
@@ -866,7 +871,7 @@ class WC_Data_Cleanup_Admin {
 				$result = $customers_handler->delete_all_except_selected_customers( $customer_ids, $sanitized_options );
 				break;
 			default:
-				wp_send_json_error( array( 'message' => __( 'Invalid action.', 'wc-data-cleanup' ) ) );
+				wp_send_json_error( array( 'message' => __( 'Invalid action.', 'data-cleanup-for-woocommerce' ) ) );
 				break;
 		}
 
@@ -876,7 +881,7 @@ class WC_Data_Cleanup_Admin {
 			wp_send_json_success( array(
 				'message' => sprintf(
 					/* translators: %d: number of deleted customers */
-					__( 'Successfully deleted %d customers.', 'wc-data-cleanup' ),
+					__( 'Successfully deleted %d customers.', 'data-cleanup-for-woocommerce' ),
 					$result['deleted']
 				),
 				'count' => $result['deleted'],
@@ -892,12 +897,12 @@ class WC_Data_Cleanup_Admin {
 	public function ajax_delete_orders() {
 		// Check nonce
 		if ( ! check_ajax_referer( 'wc-data-cleanup-nonce', 'nonce', false ) ) {
-			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'wc-data-cleanup' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
 		// Check permissions
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'You do not have permission to perform this action.', 'wc-data-cleanup' ) ) );
+			wp_send_json_error( array( 'message' => __( 'You do not have permission to perform this action.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
 		$action = isset( $_POST['action_type'] ) ? sanitize_text_field( wp_unslash( $_POST['action_type'] ) ) : '';
@@ -935,7 +940,7 @@ class WC_Data_Cleanup_Admin {
 				$result = $orders_handler->delete_orders_by_date_range( $date_from, $date_to, $sanitized_options );
 				break;
 			default:
-				wp_send_json_error( array( 'message' => __( 'Invalid action.', 'wc-data-cleanup' ) ) );
+				wp_send_json_error( array( 'message' => __( 'Invalid action.', 'data-cleanup-for-woocommerce' ) ) );
 				break;
 		}
 
@@ -945,7 +950,7 @@ class WC_Data_Cleanup_Admin {
 			wp_send_json_success( array(
 				'message' => sprintf(
 					/* translators: %d: number of deleted orders */
-					__( 'Successfully deleted %d orders.', 'wc-data-cleanup' ),
+					__( 'Successfully deleted %d orders.', 'data-cleanup-for-woocommerce' ),
 					$result['deleted']
 				),
 				'count' => $result['deleted'],
@@ -961,12 +966,12 @@ class WC_Data_Cleanup_Admin {
 	public function ajax_get_users() {
 		// Check nonce
 		if ( ! check_ajax_referer( 'wc-data-cleanup-nonce', 'nonce', false ) ) {
-			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'wc-data-cleanup' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
 		// Check permissions
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'You do not have permission to perform this action.', 'wc-data-cleanup' ) ) );
+			wp_send_json_error( array( 'message' => __( 'You do not have permission to perform this action.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
 		$search = isset( $_GET['search'] ) ? sanitize_text_field( wp_unslash( $_GET['search'] ) ) : '';
@@ -985,12 +990,12 @@ class WC_Data_Cleanup_Admin {
 	public function ajax_get_customers() {
 		// Check nonce
 		if ( ! check_ajax_referer( 'wc-data-cleanup-nonce', 'nonce', false ) ) {
-			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'wc-data-cleanup' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
 		// Check permissions
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'You do not have permission to perform this action.', 'wc-data-cleanup' ) ) );
+			wp_send_json_error( array( 'message' => __( 'You do not have permission to perform this action.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
 		$search = isset( $_GET['search'] ) ? sanitize_text_field( wp_unslash( $_GET['search'] ) ) : '';
@@ -1009,12 +1014,12 @@ class WC_Data_Cleanup_Admin {
 	public function ajax_get_orders() {
 		// Check nonce
 		if ( ! check_ajax_referer( 'wc-data-cleanup-nonce', 'nonce', false ) ) {
-			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'wc-data-cleanup' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
 		// Check permissions
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'You do not have permission to perform this action.', 'wc-data-cleanup' ) ) );
+			wp_send_json_error( array( 'message' => __( 'You do not have permission to perform this action.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
 		$search = isset( $_GET['search'] ) ? sanitize_text_field( wp_unslash( $_GET['search'] ) ) : '';
@@ -1049,12 +1054,12 @@ class WC_Data_Cleanup_Admin {
 	public function ajax_get_order_statuses() {
 		// Check nonce
 		if ( ! check_ajax_referer( 'wc-data-cleanup-nonce', 'nonce', false ) ) {
-			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'wc-data-cleanup' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
 		// Check permissions
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'You do not have permission to perform this action.', 'wc-data-cleanup' ) ) );
+			wp_send_json_error( array( 'message' => __( 'You do not have permission to perform this action.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 		
 		// Check if we should force a refresh of the counts
@@ -1072,12 +1077,12 @@ class WC_Data_Cleanup_Admin {
 	public function ajax_delete_bookings() {
 		// Check nonce
 		if ( ! check_ajax_referer( 'wc-data-cleanup-nonce', 'nonce', false ) ) {
-			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'wc-data-cleanup' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
 		// Check permissions
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'You do not have permission to perform this action.', 'wc-data-cleanup' ) ) );
+			wp_send_json_error( array( 'message' => __( 'You do not have permission to perform this action.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
 		// Check for direct booking IDs from the preview selection
@@ -1100,7 +1105,7 @@ class WC_Data_Cleanup_Admin {
 				wp_send_json_error(array('message' => $result->get_error_message()));
 			} else {
 				wp_send_json_success(array(
-					'message' => __('Successfully deleted bookings.', 'wc-data-cleanup'),
+					'message' => __('Successfully deleted bookings.', 'data-cleanup-for-woocommerce'),
 					'count' => $result['deleted'],
 					'orders_deleted' => isset($result['orders_deleted']) ? $result['orders_deleted'] : 0,
 				));
@@ -1146,7 +1151,7 @@ class WC_Data_Cleanup_Admin {
 				$result = $bookings_handler->delete_bookings_by_date_range( $date_from, $date_to, $sanitized_options );
 				break;
 			default:
-				wp_send_json_error( array( 'message' => __( 'Invalid action.', 'wc-data-cleanup' ) ) );
+				wp_send_json_error( array( 'message' => __( 'Invalid action.', 'data-cleanup-for-woocommerce' ) ) );
 				break;
 		}
 
@@ -1154,7 +1159,7 @@ class WC_Data_Cleanup_Admin {
 			wp_send_json_error( array( 'message' => $result->get_error_message() ) );
 		} else {
 			wp_send_json_success( array(
-				'message' => __( 'Successfully deleted bookings.', 'wc-data-cleanup' ),
+				'message' => __( 'Successfully deleted bookings.', 'data-cleanup-for-woocommerce' ),
 				'count' => $result['deleted'],
 				'total' => isset( $result['total'] ) ? $result['total'] : $result['deleted'],
 				'batch_complete' => isset( $result['batch_complete'] ) ? $result['batch_complete'] : true
@@ -1168,13 +1173,13 @@ class WC_Data_Cleanup_Admin {
 	public function ajax_get_bookings() {
 		// Check nonce
 		if ( ! check_ajax_referer( 'wc-data-cleanup-nonce', 'nonce', false ) ) {
-			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'wc-data-cleanup' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'data-cleanup-for-woocommerce' ) ) );
 			return;
 		}
 
 		// Check permissions
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'You do not have permission to perform this action.', 'wc-data-cleanup' ) ) );
+			wp_send_json_error( array( 'message' => __( 'You do not have permission to perform this action.', 'data-cleanup-for-woocommerce' ) ) );
 			return;
 		}
 		
@@ -1215,12 +1220,12 @@ class WC_Data_Cleanup_Admin {
 	public function ajax_get_booking_statuses() {
 		// Check nonce
 		if ( ! check_ajax_referer( 'wc-data-cleanup-nonce', 'nonce', false ) ) {
-			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'wc-data-cleanup' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
 		// Check permissions
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'You do not have permission to perform this action.', 'wc-data-cleanup' ) ) );
+			wp_send_json_error( array( 'message' => __( 'You do not have permission to perform this action.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 		
 		$bookings_handler = new WC_Data_Cleanup_Bookings();
@@ -1235,13 +1240,13 @@ class WC_Data_Cleanup_Admin {
 	public function ajax_get_bookings_preview() {
 		// Check nonce
 		if ( ! check_ajax_referer( 'wc-data-cleanup-nonce', 'nonce', false ) ) {
-			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'wc-data-cleanup' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'data-cleanup-for-woocommerce' ) ) );
 			return;
 		}
 
 		// Check permissions
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'You do not have permission to perform this action.', 'wc-data-cleanup' ) ) );
+			wp_send_json_error( array( 'message' => __( 'You do not have permission to perform this action.', 'data-cleanup-for-woocommerce' ) ) );
 			return;
 		}
 		
@@ -1330,16 +1335,16 @@ class WC_Data_Cleanup_Admin {
 			$product_name = '';
 			if ($booking->product_id) {
 				$product_post = get_post($booking->product_id);
-				$product_name = $product_post ? $product_post->post_title : __('(Unknown product)', 'wc-data-cleanup');
+				$product_name = $product_post ? $product_post->post_title : __('(Unknown product)', 'data-cleanup-for-woocommerce');
 			}
 			
 			// Get customer name
 			$customer_name = '';
 			if ($booking->customer_id) {
 				$customer = get_userdata($booking->customer_id);
-				$customer_name = $customer ? $customer->display_name : __('(Guest)', 'wc-data-cleanup');
+				$customer_name = $customer ? $customer->display_name : __('(Guest)', 'data-cleanup-for-woocommerce');
 			} else {
-				$customer_name = __('Guest', 'wc-data-cleanup');
+				$customer_name = __('Guest', 'data-cleanup-for-woocommerce');
 			}
 			
 			// Format date
@@ -1471,12 +1476,12 @@ class WC_Data_Cleanup_Admin {
 	public function ajax_delete_bookings_by_date_range() {
 		// Check nonce
 		if ( ! check_ajax_referer( 'wc-data-cleanup-nonce', 'nonce', false ) ) {
-			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'wc-data-cleanup' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
 		// Check permissions
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'You do not have permission to perform this action.', 'wc-data-cleanup' ) ) );
+			wp_send_json_error( array( 'message' => __( 'You do not have permission to perform this action.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 		
 		// Get date range
@@ -1486,7 +1491,7 @@ class WC_Data_Cleanup_Admin {
 		
 		// Validate dates
 		if ( empty( $date_from ) || empty( $date_to ) ) {
-			wp_send_json_error( array( 'message' => __( 'Please select both start and end dates.', 'wc-data-cleanup' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Please select both start and end dates.', 'data-cleanup-for-woocommerce' ) ) );
 			return;
 		}
 		
@@ -1503,7 +1508,7 @@ class WC_Data_Cleanup_Admin {
 			wp_send_json_error( array( 'message' => $result->get_error_message() ) );
 		} else {
 			wp_send_json_success( array(
-				'message' => __( 'Successfully deleted bookings.', 'wc-data-cleanup' ),
+				'message' => __( 'Successfully deleted bookings.', 'data-cleanup-for-woocommerce' ),
 				'count' => $result['deleted']
 			) );
 		}

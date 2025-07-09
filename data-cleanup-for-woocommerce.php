@@ -6,13 +6,15 @@
  * Version: 1.1.0
  * Author: Shameem Reza
  * Author URI: https://shameem.dev
- * Text Domain: wc-data-cleanup
+ * Text Domain: data-cleanup-for-woocommerce
  * Domain Path: /languages
  * Requires at least: 6.0
  * Tested up to: 6.8.1
  * Requires PHP: 7.4
  * WC requires at least: 7.0
  * WC tested up to: 9.9.5
+ * License: GPLv2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  */
 
 // Exit if accessed directly
@@ -72,7 +74,7 @@ class WC_Data_Cleanup {
 	public function woocommerce_missing_notice() {
 		?>
 		<div class="notice notice-error">
-			<p><?php esc_html_e( 'WooCommerce Data Cleanup requires WooCommerce to be installed and active.', 'wc-data-cleanup' ); ?></p>
+			<p><?php esc_html_e( 'Data Cleanup for WooCommerce requires WooCommerce to be installed and active.', 'data-cleanup-for-woocommerce' ); ?></p>
 		</div>
 		<?php
 	}
@@ -119,7 +121,7 @@ class WC_Data_Cleanup {
 	 * Load plugin text domain
 	 */
 	public function load_plugin_textdomain() {
-		load_plugin_textdomain( 'wc-data-cleanup', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+		load_plugin_textdomain( 'data-cleanup-for-woocommerce', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 	}
 
 	/**

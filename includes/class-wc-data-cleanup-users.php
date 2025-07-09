@@ -32,7 +32,7 @@ class WC_Data_Cleanup_Users {
 			return array(
 				'success' => true,
 				'deleted' => 0,
-				'message' => __( 'No customer users found to delete.', 'wc-data-cleanup' ),
+				'message' => __( 'No customer users found to delete.', 'data-cleanup-for-woocommerce' ),
 			);
 		}
 
@@ -48,7 +48,7 @@ class WC_Data_Cleanup_Users {
 	 */
 	public function delete_selected_users( $user_ids, $options = array() ) {
 		if ( empty( $user_ids ) ) {
-			return new WP_Error( 'no_users', __( 'No users selected for deletion.', 'wc-data-cleanup' ) );
+			return new WP_Error( 'no_users', __( 'No users selected for deletion.', 'data-cleanup-for-woocommerce' ) );
 		}
 
 		// Default options
@@ -63,7 +63,7 @@ class WC_Data_Cleanup_Users {
 
 		// Check if current user is in the list
 		if ( in_array( get_current_user_id(), $user_ids, true ) ) {
-			return new WP_Error( 'self_delete', __( 'You cannot delete your own user account.', 'wc-data-cleanup' ) );
+			return new WP_Error( 'self_delete', __( 'You cannot delete your own user account.', 'data-cleanup-for-woocommerce' ) );
 		}
 
 		$deleted_count = 0;
@@ -79,7 +79,7 @@ class WC_Data_Cleanup_Users {
 			if ( user_can( $user_id, 'administrator' ) ) {
 				$errors[] = sprintf(
 					/* translators: %d: user ID */
-					__( 'User #%d is an administrator and cannot be deleted.', 'wc-data-cleanup' ),
+					__( 'User #%d is an administrator and cannot be deleted.', 'data-cleanup-for-woocommerce' ),
 					$user_id
 				);
 				continue;
@@ -131,7 +131,7 @@ class WC_Data_Cleanup_Users {
 			} else {
 				$errors[] = sprintf(
 					/* translators: %d: user ID */
-					__( 'Failed to delete user #%d.', 'wc-data-cleanup' ),
+					__( 'Failed to delete user #%d.', 'data-cleanup-for-woocommerce' ),
 					$user_id
 				);
 			}
@@ -146,14 +146,15 @@ class WC_Data_Cleanup_Users {
 			'users_with_posts'  => $users_with_posts,
 			'users_with_comments' => $users_with_comments,
 			'skipped'           => $skipped,
-			'message'           => sprintf( __( 'Successfully deleted %d users.', 'wc-data-cleanup' ), $deleted_count ),
+			// translators: %d is the number of users deleted.
+			'message'           => sprintf( __( 'Successfully deleted %d users.', 'data-cleanup-for-woocommerce' ), $deleted_count ),
 		);
 
 		// Add additional message if users were skipped
 		if ( ! empty( $users_with_orders ) ) {
 			$response['message'] .= ' ' . sprintf(
 				/* translators: %d: number of users with orders */
-				__( '%d users were skipped because they have orders.', 'wc-data-cleanup' ),
+				__( '%d users were skipped because they have orders.', 'data-cleanup-for-woocommerce' ),
 				count( $users_with_orders )
 			);
 		}
@@ -170,7 +171,7 @@ class WC_Data_Cleanup_Users {
 	 */
 	public function delete_all_except_selected_users( $user_ids, $options = array() ) {
 		if ( empty( $user_ids ) ) {
-			return new WP_Error( 'no_users', __( 'No users selected to keep.', 'wc-data-cleanup' ) );
+			return new WP_Error( 'no_users', __( 'No users selected to keep.', 'data-cleanup-for-woocommerce' ) );
 		}
 
 		// Get all users with customer role
@@ -184,7 +185,7 @@ class WC_Data_Cleanup_Users {
 			return array(
 				'success' => true,
 				'deleted' => 0,
-				'message' => __( 'No customer users found to delete.', 'wc-data-cleanup' ),
+				'message' => __( 'No customer users found to delete.', 'data-cleanup-for-woocommerce' ),
 			);
 		}
 
@@ -195,7 +196,7 @@ class WC_Data_Cleanup_Users {
 			return array(
 				'success' => true,
 				'deleted' => 0,
-				'message' => __( 'No users to delete after filtering.', 'wc-data-cleanup' ),
+				'message' => __( 'No users to delete after filtering.', 'data-cleanup-for-woocommerce' ),
 			);
 		}
 

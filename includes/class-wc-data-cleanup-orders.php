@@ -28,7 +28,7 @@ class WC_Data_Cleanup_Orders {
 			return array(
 				'success' => true,
 				'deleted' => 0,
-				'message' => __( 'No orders found to delete.', 'wc-data-cleanup' ),
+				'message' => __( 'No orders found to delete.', 'data-cleanup-for-woocommerce' ),
 			);
 		}
 
@@ -44,7 +44,7 @@ class WC_Data_Cleanup_Orders {
 	 */
 	public function delete_selected_orders( $order_ids, $options = array() ) {
 		if ( empty( $order_ids ) ) {
-			return new WP_Error( 'no_orders', __( 'No orders selected for deletion.', 'wc-data-cleanup' ) );
+			return new WP_Error( 'no_orders', __( 'No orders selected for deletion.', 'data-cleanup-for-woocommerce' ) );
 		}
 
 		// Default options
@@ -82,21 +82,21 @@ class WC_Data_Cleanup_Orders {
 						} else {
 							$batch_errors[] = sprintf(
 								/* translators: %d: order ID */
-								__( 'Failed to delete order #%d.', 'wc-data-cleanup' ),
+								__( 'Failed to delete order #%d.', 'data-cleanup-for-woocommerce' ),
 								$order_id
 							);
 						}
 					} else {
 						$batch_errors[] = sprintf(
 							/* translators: %d: order ID */
-							__( 'Order #%d not found.', 'wc-data-cleanup' ),
+							__( 'Order #%d not found.', 'data-cleanup-for-woocommerce' ),
 							$order_id
 						);
 					}
 				} catch ( Exception $e ) {
 					$batch_errors[] = sprintf(
 						/* translators: 1: order ID, 2: error message */
-						__( 'Error deleting order #%1$d: %2$s', 'wc-data-cleanup' ),
+						__( 'Error deleting order #%1$d: %2$s', 'data-cleanup-for-woocommerce' ),
 						$order_id,
 						$e->getMessage()
 					);
@@ -119,7 +119,8 @@ class WC_Data_Cleanup_Orders {
 			'errors'        => $errors,
 			'total_batches' => $total_batches,
 			'batch_results' => $batch_results,
-			'message'       => sprintf( __( 'Successfully deleted %d orders.', 'wc-data-cleanup' ), $deleted_count ),
+			// translators: %d is the number of orders deleted.
+			'message'       => sprintf( __( 'Successfully deleted %d orders.', 'data-cleanup-for-woocommerce' ), $deleted_count ),
 		);
 	}
 
@@ -132,7 +133,7 @@ class WC_Data_Cleanup_Orders {
 	 */
 	public function delete_all_except_selected_orders( $order_ids, $options = array() ) {
 		if ( empty( $order_ids ) ) {
-			return new WP_Error( 'no_orders', __( 'No orders selected to keep.', 'wc-data-cleanup' ) );
+			return new WP_Error( 'no_orders', __( 'No orders selected to keep.', 'data-cleanup-for-woocommerce' ) );
 		}
 
 		// Get all order IDs
@@ -142,7 +143,7 @@ class WC_Data_Cleanup_Orders {
 			return array(
 				'success' => true,
 				'deleted' => 0,
-				'message' => __( 'No orders found to delete.', 'wc-data-cleanup' ),
+				'message' => __( 'No orders found to delete.', 'data-cleanup-for-woocommerce' ),
 			);
 		}
 
@@ -153,7 +154,7 @@ class WC_Data_Cleanup_Orders {
 			return array(
 				'success' => true,
 				'deleted' => 0,
-				'message' => __( 'No orders to delete after filtering.', 'wc-data-cleanup' ),
+				'message' => __( 'No orders to delete after filtering.', 'data-cleanup-for-woocommerce' ),
 			);
 		}
 
@@ -169,7 +170,7 @@ class WC_Data_Cleanup_Orders {
 	 */
 	public function delete_orders_by_status( $statuses, $options = array() ) {
 		if ( empty( $statuses ) ) {
-			return new WP_Error( 'no_statuses', __( 'No order statuses selected.', 'wc-data-cleanup' ) );
+			return new WP_Error( 'no_statuses', __( 'No order statuses selected.', 'data-cleanup-for-woocommerce' ) );
 		}
 
 		// Get orders by status
@@ -179,7 +180,7 @@ class WC_Data_Cleanup_Orders {
 			return array(
 				'success' => true,
 				'deleted' => 0,
-				'message' => __( 'No orders found with the selected statuses.', 'wc-data-cleanup' ),
+				'message' => __( 'No orders found with the selected statuses.', 'data-cleanup-for-woocommerce' ),
 			);
 		}
 
@@ -197,7 +198,7 @@ class WC_Data_Cleanup_Orders {
 	public function delete_orders_by_date_range( $start_date, $end_date, $options = array() ) {
 		// Validate dates
 		if ( ! $this->is_valid_date( $start_date ) || ! $this->is_valid_date( $end_date ) ) {
-			return new WP_Error( 'invalid_dates', __( 'Invalid date format. Use YYYY-MM-DD.', 'wc-data-cleanup' ) );
+			return new WP_Error( 'invalid_dates', __( 'Invalid date format. Use YYYY-MM-DD.', 'data-cleanup-for-woocommerce' ) );
 		}
 
 		// Get orders by date range
@@ -207,7 +208,7 @@ class WC_Data_Cleanup_Orders {
 			return array(
 				'success' => true,
 				'deleted' => 0,
-				'message' => __( 'No orders found in the selected date range.', 'wc-data-cleanup' ),
+				'message' => __( 'No orders found in the selected date range.', 'data-cleanup-for-woocommerce' ),
 			);
 		}
 

@@ -28,7 +28,7 @@ class WC_Data_Cleanup_Customers {
 			return array(
 				'success' => true,
 				'deleted' => 0,
-				'message' => __( 'No customers found to delete.', 'wc-data-cleanup' ),
+				'message' => __( 'No customers found to delete.', 'data-cleanup-for-woocommerce' ),
 			);
 		}
 
@@ -44,7 +44,7 @@ class WC_Data_Cleanup_Customers {
 	 */
 	public function delete_selected_customers( $customer_ids, $options = array() ) {
 		if ( empty( $customer_ids ) ) {
-			return new WP_Error( 'no_customers', __( 'No customers selected for deletion.', 'wc-data-cleanup' ) );
+			return new WP_Error( 'no_customers', __( 'No customers selected for deletion.', 'data-cleanup-for-woocommerce' ) );
 		}
 
 		// Default options
@@ -93,7 +93,7 @@ class WC_Data_Cleanup_Customers {
 			} catch ( Exception $e ) {
 				$errors[] = sprintf(
 					/* translators: 1: customer ID, 2: error message */
-					__( 'Failed to delete customer #%1$d: %2$s', 'wc-data-cleanup' ),
+					__( 'Failed to delete customer #%1$d: %2$s', 'data-cleanup-for-woocommerce' ),
 					$customer_id,
 					$e->getMessage()
 				);
@@ -107,14 +107,15 @@ class WC_Data_Cleanup_Customers {
 			'errors'               => $errors,
 			'customers_with_orders' => $customers_with_orders,
 			'skipped'              => $skipped,
-			'message'              => sprintf( __( 'Successfully deleted %d customers.', 'wc-data-cleanup' ), $deleted_count ),
+			// translators: %d is the number of customers deleted.
+			'message'              => sprintf( __( 'Successfully deleted %d customers.', 'data-cleanup-for-woocommerce' ), $deleted_count ),
 		);
 
 		// Add additional message if customers were skipped
 		if ( ! empty( $customers_with_orders ) ) {
 			$response['message'] .= ' ' . sprintf(
 				/* translators: %d: number of customers with orders */
-				__( '%d customers were skipped because they have orders.', 'wc-data-cleanup' ),
+				__( '%d customers were skipped because they have orders.', 'data-cleanup-for-woocommerce' ),
 				count( $customers_with_orders )
 			);
 		}
@@ -131,7 +132,7 @@ class WC_Data_Cleanup_Customers {
 	 */
 	public function delete_all_except_selected_customers( $customer_ids, $options = array() ) {
 		if ( empty( $customer_ids ) ) {
-			return new WP_Error( 'no_customers', __( 'No customers selected to keep.', 'wc-data-cleanup' ) );
+			return new WP_Error( 'no_customers', __( 'No customers selected to keep.', 'data-cleanup-for-woocommerce' ) );
 		}
 
 		// Get all customers
@@ -141,7 +142,7 @@ class WC_Data_Cleanup_Customers {
 			return array(
 				'success' => true,
 				'deleted' => 0,
-				'message' => __( 'No customers found to delete.', 'wc-data-cleanup' ),
+				'message' => __( 'No customers found to delete.', 'data-cleanup-for-woocommerce' ),
 			);
 		}
 
@@ -152,7 +153,7 @@ class WC_Data_Cleanup_Customers {
 			return array(
 				'success' => true,
 				'deleted' => 0,
-				'message' => __( 'No customers to delete after filtering.', 'wc-data-cleanup' ),
+				'message' => __( 'No customers to delete after filtering.', 'data-cleanup-for-woocommerce' ),
 			);
 		}
 

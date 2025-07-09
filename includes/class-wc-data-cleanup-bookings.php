@@ -28,7 +28,7 @@ class WC_Data_Cleanup_Bookings {
 			return array(
 				'success' => true,
 				'deleted' => 0,
-				'message' => __( 'No bookings found to delete.', 'wc-data-cleanup' ),
+				'message' => __( 'No bookings found to delete.', 'data-cleanup-for-woocommerce' ),
 			);
 		}
 
@@ -54,7 +54,7 @@ class WC_Data_Cleanup_Bookings {
 	 */
 	public function delete_all_except_selected_bookings( $booking_ids, $options = array() ) {
 		if ( empty( $booking_ids ) ) {
-			return new WP_Error( 'no_bookings', __( 'No bookings selected to keep.', 'wc-data-cleanup' ) );
+			return new WP_Error( 'no_bookings', __( 'No bookings selected to keep.', 'data-cleanup-for-woocommerce' ) );
 		}
 
 		// Get all booking IDs
@@ -64,7 +64,7 @@ class WC_Data_Cleanup_Bookings {
 			return array(
 				'success' => true,
 				'deleted' => 0,
-				'message' => __( 'No bookings found to delete.', 'wc-data-cleanup' ),
+				'message' => __( 'No bookings found to delete.', 'data-cleanup-for-woocommerce' ),
 			);
 		}
 
@@ -75,7 +75,7 @@ class WC_Data_Cleanup_Bookings {
 			return array(
 				'success' => true,
 				'deleted' => 0,
-				'message' => __( 'No bookings to delete after filtering.', 'wc-data-cleanup' ),
+				'message' => __( 'No bookings to delete after filtering.', 'data-cleanup-for-woocommerce' ),
 			);
 		}
 
@@ -91,7 +91,7 @@ class WC_Data_Cleanup_Bookings {
 	 */
 	public function delete_bookings_by_status( $status, $options = array() ) {
 		if ( empty( $status ) ) {
-			return new WP_Error( 'no_status', __( 'No booking status selected.', 'wc-data-cleanup' ) );
+			return new WP_Error( 'no_status', __( 'No booking status selected.', 'data-cleanup-for-woocommerce' ) );
 		}
 
 		// Get bookings by status
@@ -101,7 +101,7 @@ class WC_Data_Cleanup_Bookings {
 			return array(
 				'success' => true,
 				'deleted' => 0,
-				'message' => __( 'No bookings found with the selected status.', 'wc-data-cleanup' ),
+				'message' => __( 'No bookings found with the selected status.', 'data-cleanup-for-woocommerce' ),
 			);
 		}
 
@@ -130,7 +130,7 @@ class WC_Data_Cleanup_Bookings {
 	public function delete_bookings_by_date_range( $start_date, $end_date, $options = array() ) {
 		// Validate dates
 		if ( ! $this->is_valid_date( $start_date ) || ! $this->is_valid_date( $end_date ) ) {
-			return new WP_Error( 'invalid_dates', __( 'Invalid date format. Use YYYY-MM-DD.', 'wc-data-cleanup' ) );
+			return new WP_Error( 'invalid_dates', __( 'Invalid date format. Use YYYY-MM-DD.', 'data-cleanup-for-woocommerce' ) );
 		}
 
 		// Convert to timestamp
@@ -144,7 +144,7 @@ class WC_Data_Cleanup_Bookings {
 			return array(
 				'success' => true,
 				'deleted' => 0,
-				'message' => __( 'No bookings found in the selected date range.', 'wc-data-cleanup' ),
+				'message' => __( 'No bookings found in the selected date range.', 'data-cleanup-for-woocommerce' ),
 			);
 		}
 
@@ -343,12 +343,12 @@ class WC_Data_Cleanup_Bookings {
 				// Get product info
 				$product_id = $booking->get_product_id();
 				$product = wc_get_product( $product_id );
-				$product_title = $product ? $product->get_name() : __( '(No product)', 'wc-data-cleanup' );
+				$product_title = $product ? $product->get_name() : __( '(No product)', 'data-cleanup-for-woocommerce' );
 				
 				// Get customer info
 				$customer_id = $booking->get_customer_id();
 				$customer = $customer_id ? get_userdata( $customer_id ) : false;
-				$customer_name = $customer ? $customer->display_name : __( 'Guest', 'wc-data-cleanup' );
+				$customer_name = $customer ? $customer->display_name : __( 'Guest', 'data-cleanup-for-woocommerce' );
 				
 				// Format the booking text
 				$booking_data = array(
@@ -384,7 +384,7 @@ class WC_Data_Cleanup_Bookings {
 				// Add a basic entry for this booking so it's still visible in the UI
 				$results[] = array(
 					'id'   => $booking_id,
-					'text' => sprintf('#%s - %s', $booking_id, __('Error loading booking details', 'wc-data-cleanup')),
+					'text' => sprintf('#%s - %s', $booking_id, __('Error loading booking details', 'data-cleanup-for-woocommerce')),
 					'error' => true,
 				);
 			}
@@ -436,7 +436,7 @@ class WC_Data_Cleanup_Bookings {
 		global $wpdb;
 		
 		if ( empty( $booking_ids ) ) {
-			return new WP_Error( 'no_bookings', __( 'No bookings selected for deletion.', 'wc-data-cleanup' ) );
+			return new WP_Error( 'no_bookings', __( 'No bookings selected for deletion.', 'data-cleanup-for-woocommerce' ) );
 		}
 
 		// Default options
@@ -497,14 +497,14 @@ class WC_Data_Cleanup_Bookings {
 					} else {
 						$batch_errors[] = sprintf(
 							/* translators: %d: booking ID */
-							__( 'Failed to delete booking #%d.', 'wc-data-cleanup' ),
+							__( 'Failed to delete booking #%d.', 'data-cleanup-for-woocommerce' ),
 							$booking_id
 						);
 					}
 				} catch ( Exception $e ) {
 					$batch_errors[] = sprintf(
 						/* translators: 1: booking ID, 2: error message */
-						__( 'Error deleting booking #%1$d: %2$s', 'wc-data-cleanup' ),
+						__( 'Error deleting booking #%1$d: %2$s', 'data-cleanup-for-woocommerce' ),
 						$booking_id,
 						$e->getMessage()
 					);
@@ -527,7 +527,8 @@ class WC_Data_Cleanup_Bookings {
 			'errors'        => $errors,
 			'total_batches' => $total_batches,
 			'batch_results' => $batch_results,
-			'message'       => sprintf( __( 'Successfully deleted %d bookings.', 'wc-data-cleanup' ), $deleted_count ),
+			// translators: %d is the number of bookings deleted.
+			'message'       => sprintf( __( 'Successfully deleted %d bookings.', 'data-cleanup-for-woocommerce' ), $deleted_count ),
 		);
 	}
 
@@ -567,7 +568,7 @@ class WC_Data_Cleanup_Bookings {
 	public function get_booking_status_name( $status ) {
 		// If empty status, return default
 		if ( empty( $status ) ) {
-			return __( 'Unknown', 'wc-data-cleanup' );
+			return __( 'Unknown', 'data-cleanup-for-woocommerce' );
 		}
 		
 		// If WooCommerce Bookings function exists, use it
@@ -577,14 +578,14 @@ class WC_Data_Cleanup_Bookings {
 		
 		// Otherwise, use our own mapping
 		$status_names = array(
-			'unpaid'              => __( 'Unpaid', 'wc-data-cleanup' ),
-			'pending-confirmation' => __( 'Pending Confirmation', 'wc-data-cleanup' ),
-			'confirmed'           => __( 'Confirmed', 'wc-data-cleanup' ),
-			'paid'                => __( 'Paid', 'wc-data-cleanup' ),
-			'cancelled'           => __( 'Cancelled', 'wc-data-cleanup' ),
-			'complete'            => __( 'Complete', 'wc-data-cleanup' ),
-			'in-cart'             => __( 'In Cart', 'wc-data-cleanup' ),
-			'was-in-cart'         => __( 'Was In Cart', 'wc-data-cleanup' ),
+			'unpaid'              => __( 'Unpaid', 'data-cleanup-for-woocommerce' ),
+			'pending-confirmation' => __( 'Pending Confirmation', 'data-cleanup-for-woocommerce' ),
+			'confirmed'           => __( 'Confirmed', 'data-cleanup-for-woocommerce' ),
+			'paid'                => __( 'Paid', 'data-cleanup-for-woocommerce' ),
+			'cancelled'           => __( 'Cancelled', 'data-cleanup-for-woocommerce' ),
+			'complete'            => __( 'Complete', 'data-cleanup-for-woocommerce' ),
+			'in-cart'             => __( 'In Cart', 'data-cleanup-for-woocommerce' ),
+			'was-in-cart'         => __( 'Was In Cart', 'data-cleanup-for-woocommerce' ),
 		);
 		
 		return isset( $status_names[ $status ] ) ? $status_names[ $status ] : ucfirst( $status );
