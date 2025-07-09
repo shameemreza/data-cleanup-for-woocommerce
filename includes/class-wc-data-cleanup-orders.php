@@ -492,32 +492,44 @@ class WC_Data_Cleanup_Orders {
 				
 				if ($is_hpos_enabled) {
 					// HPOS search
-					$query = "
+					// Create base query with parameters
+					$base_query = "
 						SELECT id FROM {$wpdb->prefix}wc_orders
-						WHERE
+						WHERE (
 							billing_email LIKE %s OR
 							billing_first_name LIKE %s OR
 							billing_last_name LIKE %s OR
 							billing_company LIKE %s
+						)
 					";
 					
+					$query_params = array($search_term, $search_term, $search_term, $search_term);
+					
 					// Add status filter if provided
+					$status_sql = "";
 					if (!empty($status)) {
 						$statuses = explode(',', $status);
 						$status_conditions = array();
+						$status_values = array();
+						
 						foreach ($statuses as $s) {
-							$status_conditions[] = $wpdb->prepare("status = %s", str_replace('wc-', '', $s));
+							$status_conditions[] = "status = %s";
+							$status_values[] = str_replace('wc-', '', $s);
 						}
+						
 						if (!empty($status_conditions)) {
-							$query .= " AND (" . implode(' OR ', $status_conditions) . ")";
+							$status_sql = " AND (" . implode(' OR ', $status_conditions) . ")";
+							$query_params = array_merge($query_params, $status_values);
 						}
 					}
 					
-					$query .= " LIMIT 100";
+					// Complete the query with limit
+					$final_query = $base_query . $status_sql . " LIMIT 100";
 					
+					// Execute the properly prepared query
 					$expanded_results = $wpdb->get_col($wpdb->prepare(
-						$query,
-						$search_term, $search_term, $search_term, $search_term
+						$final_query,
+						...$query_params
 					));
 				} else {
 					// Traditional post meta search
@@ -556,9 +568,18 @@ class WC_Data_Cleanup_Orders {
 						}
 					}
 					
-					$query .= ") LIMIT 100";
+					// Prepare the full query properly
+					$prepared_query = $wpdb->prepare(
+						"SELECT DISTINCT post_id FROM {$wpdb->postmeta}
+						WHERE (" . implode(' OR ', $meta_conditions) . ")
+						AND post_id IN (
+							SELECT ID FROM {$wpdb->posts} 
+							WHERE post_type = 'shop_order'
+							" . (!empty($status_conditions) ? "AND (" . implode(' OR ', $status_conditions) . ")" : "") . "
+						) LIMIT 100"
+					);
 					
-					$expanded_results = $wpdb->get_col($query);
+					$expanded_results = $wpdb->get_col($prepared_query);
 				}
 				
 				if (!empty($expanded_results)) {
