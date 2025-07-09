@@ -569,7 +569,7 @@ class WC_Data_Cleanup_Admin {
 				<p>
 					<?php
 					// translators: %d is the total number of bookings.
-					printf( esc_html__( 'Total Bookings: %d', 'data-cleanup-for-woocommerce' ), $total_bookings );
+					printf( esc_html__( 'Total Bookings: %d', 'data-cleanup-for-woocommerce' ), absint( $total_bookings ) );
 					?>
 				</p>
 				

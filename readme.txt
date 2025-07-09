@@ -1,8 +1,8 @@
 === Data Cleanup for WooCommerce ===
 Contributors: shameemreza
-Tags: woocommerce, cleanup, database, orders, customers, bookings
+Tags: woocommerce, cleanup, orders, customers, bookings
 Requires at least: 6.0
-Tested up to: 6.8.1
+Tested up to: 6.8
 Requires PHP: 7.4
 Stable tag: 1.1.0
 License: GPLv2 or later
