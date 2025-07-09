@@ -491,48 +491,90 @@ class WC_Data_Cleanup_Orders {
 					Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled();
 				
 				if ($is_hpos_enabled) {
-					// HPOS search
-					// Create base query with parameters
-					$base_query = "
-						SELECT id FROM {$wpdb->prefix}wc_orders
-						WHERE (
-							billing_email LIKE %s OR
-							billing_first_name LIKE %s OR
-							billing_last_name LIKE %s OR
-							billing_company LIKE %s
-						)
-					";
-					
-					$query_params = array($search_term, $search_term, $search_term, $search_term);
-					
-					// Add status filter if provided
-					$status_sql = "";
+					// HPOS search - handle with separate prepared queries for each scenario
 					if (!empty($status)) {
+						// With status filter
 						$statuses = explode(',', $status);
-						$status_conditions = array();
-						$status_values = array();
 						
-						foreach ($statuses as $s) {
-							$status_conditions[] = "status = %s";
-							$status_values[] = str_replace('wc-', '', $s);
+						// For 1 status (common case - avoid complex dynamic SQL)
+						if (count($statuses) === 1) {
+							$clean_status = str_replace('wc-', '', $statuses[0]);
+							
+							$expanded_results = $wpdb->get_col($wpdb->prepare(
+								"SELECT id FROM {$wpdb->prefix}wc_orders 
+								WHERE (
+									billing_email LIKE %s OR
+									billing_first_name LIKE %s OR
+									billing_last_name LIKE %s OR
+									billing_company LIKE %s
+								)
+								AND status = %s
+								LIMIT 100",
+								$search_term, $search_term, $search_term, $search_term, $clean_status
+							));
 						}
-						
-						if (!empty($status_conditions)) {
-							$status_sql = " AND (" . implode(' OR ', $status_conditions) . ")";
-							$query_params = array_merge($query_params, $status_values);
+						// For 2 statuses
+						else if (count($statuses) === 2) {
+							$clean_status1 = str_replace('wc-', '', $statuses[0]);
+							$clean_status2 = str_replace('wc-', '', $statuses[1]);
+							
+							$expanded_results = $wpdb->get_col($wpdb->prepare(
+								"SELECT id FROM {$wpdb->prefix}wc_orders 
+								WHERE (
+									billing_email LIKE %s OR
+									billing_first_name LIKE %s OR
+									billing_last_name LIKE %s OR
+									billing_company LIKE %s
+								)
+								AND (status = %s OR status = %s)
+								LIMIT 100",
+								$search_term, $search_term, $search_term, $search_term,
+								$clean_status1, $clean_status2
+							));
 						}
+						// For 3 or more statuses, build a fully prepared query
+						else {
+							// Create placeholders and values array
+							$placeholder_array = array();
+							$values_array = array($search_term, $search_term, $search_term, $search_term);
+							
+							foreach ($statuses as $s) {
+								$placeholder_array[] = '%s';
+								$values_array[] = str_replace('wc-', '', $s);
+							}
+							
+							// Construct the SQL with proper placeholders
+							$status_placeholders = implode(',', $placeholder_array);
+							
+							$expanded_results = $wpdb->get_col($wpdb->prepare(
+								"SELECT id FROM {$wpdb->prefix}wc_orders 
+								WHERE (
+									billing_email LIKE %s OR
+									billing_first_name LIKE %s OR
+									billing_last_name LIKE %s OR
+									billing_company LIKE %s
+								)
+								AND status IN ($status_placeholders)
+								LIMIT 100",
+								...$values_array
+							));
+						}
+					} else {
+						// Without status filter - simpler query
+						$expanded_results = $wpdb->get_col($wpdb->prepare(
+							"SELECT id FROM {$wpdb->prefix}wc_orders 
+							WHERE (
+								billing_email LIKE %s OR
+								billing_first_name LIKE %s OR
+								billing_last_name LIKE %s OR
+								billing_company LIKE %s
+							)
+							LIMIT 100",
+							$search_term, $search_term, $search_term, $search_term
+						));
 					}
-					
-					// Complete the query with limit
-					$final_query = $base_query . $status_sql . " LIMIT 100";
-					
-					// Execute the properly prepared query
-					$expanded_results = $wpdb->get_col($wpdb->prepare(
-						$final_query,
-						...$query_params
-					));
 				} else {
-					// Traditional post meta search
+					// Traditional post meta search - with properly prepared queries
 					$meta_keys = array(
 						'_billing_email',
 						'_billing_first_name',
@@ -540,46 +582,98 @@ class WC_Data_Cleanup_Orders {
 						'_billing_company',
 					);
 					
-					$meta_conditions = array();
+					// First, let's prepare the meta query part
+					$meta_query_parts = array();
+					$meta_query_values = array();
+					
 					foreach ($meta_keys as $key) {
-						$meta_conditions[] = $wpdb->prepare("(meta_key = %s AND meta_value LIKE %s)", $key, $search_term);
+						$meta_query_parts[] = "(meta_key = %s AND meta_value LIKE %s)";
+						$meta_query_values[] = $key;
+						$meta_query_values[] = $search_term;
 					}
 					
-					$query = "
-						SELECT DISTINCT post_id FROM {$wpdb->postmeta}
-						WHERE (" . implode(' OR ', $meta_conditions) . ")
-					";
+					$meta_query_sql = implode(' OR ', $meta_query_parts);
 					
-					// Add post type and status filter
-					$query .= " AND post_id IN (
-						SELECT ID FROM {$wpdb->posts} 
-						WHERE post_type = 'shop_order'
-					";
-					
-					// Add status filter if provided
+					// Handle status filter cases separately for proper preparation
 					if (!empty($status)) {
 						$statuses = explode(',', $status);
-						$status_conditions = array();
-						foreach ($statuses as $s) {
-							$status_conditions[] = $wpdb->prepare("post_status = %s", 'wc-' . str_replace('wc-', '', $s));
+						
+						// Common case - single status
+						if (count($statuses) === 1) {
+							$formatted_status = 'wc-' . str_replace('wc-', '', $statuses[0]);
+							
+							// Add the status to the values array first
+							$query_values = $meta_query_values;
+							$query_values[] = $formatted_status;
+							
+							$expanded_results = $wpdb->get_col($wpdb->prepare(
+								"SELECT DISTINCT post_id FROM {$wpdb->postmeta}
+								WHERE ($meta_query_sql)
+								AND post_id IN (
+									SELECT ID FROM {$wpdb->posts} 
+									WHERE post_type = 'shop_order'
+									AND post_status = %s
+								) LIMIT 100",
+								...$query_values
+							));
 						}
-						if (!empty($status_conditions)) {
-							$query .= " AND (" . implode(' OR ', $status_conditions) . ")";
+						// Two statuses
+						else if (count($statuses) === 2) {
+							$formatted_status1 = 'wc-' . str_replace('wc-', '', $statuses[0]);
+							$formatted_status2 = 'wc-' . str_replace('wc-', '', $statuses[1]);
+							
+							// Add status values to the array first
+							$query_values = $meta_query_values;
+							$query_values[] = $formatted_status1;
+							$query_values[] = $formatted_status2;
+							
+							$expanded_results = $wpdb->get_col($wpdb->prepare(
+								"SELECT DISTINCT post_id FROM {$wpdb->postmeta}
+								WHERE ($meta_query_sql)
+								AND post_id IN (
+									SELECT ID FROM {$wpdb->posts} 
+									WHERE post_type = 'shop_order'
+									AND (post_status = %s OR post_status = %s)
+								) LIMIT 100",
+								...$query_values
+							));
+						}
+						// Multiple statuses
+						else {
+							$status_placeholders = array();
+							$all_values = $meta_query_values;
+							
+							foreach ($statuses as $s) {
+								$status_placeholders[] = '%s';
+								$all_values[] = 'wc-' . str_replace('wc-', '', $s);
+							}
+							
+							$status_in_sql = implode(',', $status_placeholders);
+							
+							$expanded_results = $wpdb->get_col($wpdb->prepare(
+								"SELECT DISTINCT post_id FROM {$wpdb->postmeta}
+								WHERE ($meta_query_sql)
+								AND post_id IN (
+									SELECT ID FROM {$wpdb->posts} 
+									WHERE post_type = 'shop_order'
+									AND post_status IN ($status_in_sql)
+								) LIMIT 100",
+								...$all_values
+							));
 						}
 					}
-					
-					// Prepare the full query properly
-					$prepared_query = $wpdb->prepare(
-						"SELECT DISTINCT post_id FROM {$wpdb->postmeta}
-						WHERE (" . implode(' OR ', $meta_conditions) . ")
-						AND post_id IN (
-							SELECT ID FROM {$wpdb->posts} 
-							WHERE post_type = 'shop_order'
-							" . (!empty($status_conditions) ? "AND (" . implode(' OR ', $status_conditions) . ")" : "") . "
-						) LIMIT 100"
-					);
-					
-					$expanded_results = $wpdb->get_col($prepared_query);
+					// No status filter - simpler query
+					else {
+						$expanded_results = $wpdb->get_col($wpdb->prepare(
+							"SELECT DISTINCT post_id FROM {$wpdb->postmeta}
+							WHERE ($meta_query_sql)
+							AND post_id IN (
+								SELECT ID FROM {$wpdb->posts} 
+								WHERE post_type = 'shop_order'
+							) LIMIT 100",
+							...$meta_query_values
+						));
+					}
 				}
 				
 				if (!empty($expanded_results)) {
