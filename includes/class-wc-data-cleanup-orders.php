@@ -534,30 +534,35 @@ class WC_Data_Cleanup_Orders {
 						}
 						// For 3 or more statuses, build a fully prepared query
 						else {
-							// Create placeholders and values array
-							$placeholder_array = array();
-							$values_array = array($search_term, $search_term, $search_term, $search_term);
+							// For multiple statuses in HPOS, use individual queries for each status
+							$result_ids = array();
 							
+							// Loop through each status and run a separate query
 							foreach ($statuses as $s) {
-								$placeholder_array[] = '%s';
-								$values_array[] = str_replace('wc-', '', $s);
+								$clean_status = str_replace('wc-', '', $s);
+								
+								// Use a separate query for each status
+								$status_results = $wpdb->get_col($wpdb->prepare(
+									"SELECT id FROM {$wpdb->prefix}wc_orders 
+									WHERE (
+										billing_email LIKE %s OR 
+										billing_first_name LIKE %s OR 
+										billing_last_name LIKE %s OR 
+										billing_company LIKE %s
+									) 
+									AND status = %s
+									LIMIT 100",
+									$search_term, $search_term, $search_term, $search_term, $clean_status
+								));
+								
+								// Merge results
+								if (!empty($status_results)) {
+									$result_ids = array_merge($result_ids, $status_results);
+								}
 							}
 							
-							// Construct the SQL with proper placeholders
-							$status_placeholders = implode(',', $placeholder_array);
-							
-							$expanded_results = $wpdb->get_col($wpdb->prepare(
-								"SELECT id FROM {$wpdb->prefix}wc_orders 
-								WHERE (
-									billing_email LIKE %s OR
-									billing_first_name LIKE %s OR
-									billing_last_name LIKE %s OR
-									billing_company LIKE %s
-								)
-								AND status IN ($status_placeholders)
-								LIMIT 100",
-								...$values_array
-							));
+							// Remove duplicates
+							$expanded_results = array_unique($result_ids);
 						}
 					} else {
 						// Without status filter - simpler query
@@ -582,17 +587,17 @@ class WC_Data_Cleanup_Orders {
 						'_billing_company',
 					);
 					
-					// First, let's prepare the meta query part
-					$meta_query_parts = array();
+					// Build a safer approach that avoids interpolation warnings
+					// We'll create the meta conditions directly with wpdb->prepare for each condition
 					$meta_query_values = array();
+					$prepared_meta_conditions = array();
 					
 					foreach ($meta_keys as $key) {
-						$meta_query_parts[] = "(meta_key = %s AND meta_value LIKE %s)";
-						$meta_query_values[] = $key;
-						$meta_query_values[] = $search_term;
+						// This creates a properly prepared fragment for each meta key condition
+						$prepared_meta_conditions[] = $wpdb->prepare("(meta_key = %s AND meta_value LIKE %s)", $key, $search_term);
 					}
 					
-					$meta_query_sql = implode(' OR ', $meta_query_parts);
+					// Now we have fully prepared fragments that can be safely joined with OR
 					
 					// Handle status filter cases separately for proper preparation
 					if (!empty($status)) {
@@ -606,16 +611,34 @@ class WC_Data_Cleanup_Orders {
 							$query_values = $meta_query_values;
 							$query_values[] = $formatted_status;
 							
-							$expanded_results = $wpdb->get_col($wpdb->prepare(
-								"SELECT DISTINCT post_id FROM {$wpdb->postmeta}
-								WHERE ($meta_query_sql)
-								AND post_id IN (
-									SELECT ID FROM {$wpdb->posts} 
-									WHERE post_type = 'shop_order'
-									AND post_status = %s
-								) LIMIT 100",
-								...$query_values
-							));
+							// For single status, we'll use a completely different approach to avoid SQL warnings
+							// Use individual queries for each meta condition and combine results
+							$result_ids = array();
+							
+							// Loop through each meta key and do a separate query
+							foreach ($meta_keys as $key) {
+								$query_results = $wpdb->get_col($wpdb->prepare(
+									"SELECT DISTINCT p.ID 
+									FROM {$wpdb->posts} p
+									INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+									WHERE p.post_type = 'shop_order'
+									AND p.post_status = %s
+									AND pm.meta_key = %s
+									AND pm.meta_value LIKE %s
+									LIMIT 100",
+									$formatted_status,
+									$key,
+									$search_term
+								));
+								
+								// Merge results
+								if (!empty($query_results)) {
+									$result_ids = array_merge($result_ids, $query_results);
+								}
+							}
+							
+							// Remove duplicates
+							$expanded_results = array_unique($result_ids);
 						}
 						// Two statuses
 						else if (count($statuses) === 2) {
@@ -627,52 +650,137 @@ class WC_Data_Cleanup_Orders {
 							$query_values[] = $formatted_status1;
 							$query_values[] = $formatted_status2;
 							
-							$expanded_results = $wpdb->get_col($wpdb->prepare(
-								"SELECT DISTINCT post_id FROM {$wpdb->postmeta}
-								WHERE ($meta_query_sql)
-								AND post_id IN (
-									SELECT ID FROM {$wpdb->posts} 
-									WHERE post_type = 'shop_order'
-									AND (post_status = %s OR post_status = %s)
-								) LIMIT 100",
-								...$query_values
-							));
+							// For two statuses, use the same approach with individual queries
+							$result_ids = array();
+							
+							// Loop through each combination of meta key and status
+							foreach ($meta_keys as $key) {
+								// Query for first status
+								$results1 = $wpdb->get_col($wpdb->prepare(
+									"SELECT DISTINCT p.ID 
+									FROM {$wpdb->posts} p
+									INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+									WHERE p.post_type = 'shop_order'
+									AND p.post_status = %s
+									AND pm.meta_key = %s
+									AND pm.meta_value LIKE %s
+									LIMIT 100",
+									$formatted_status1,
+									$key,
+									$search_term
+								));
+								
+								// Query for second status
+								$results2 = $wpdb->get_col($wpdb->prepare(
+									"SELECT DISTINCT p.ID 
+									FROM {$wpdb->posts} p
+									INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+									WHERE p.post_type = 'shop_order'
+									AND p.post_status = %s
+									AND pm.meta_key = %s
+									AND pm.meta_value LIKE %s
+									LIMIT 100",
+									$formatted_status2,
+									$key,
+									$search_term
+								));
+								
+								// Merge results
+								if (!empty($results1)) {
+									$result_ids = array_merge($result_ids, $results1);
+								}
+								
+								if (!empty($results2)) {
+									$result_ids = array_merge($result_ids, $results2);
+								}
+							}
+							
+							// Remove duplicates
+							$expanded_results = array_unique($result_ids);
 						}
 						// Multiple statuses
 						else {
+							// For multiple statuses, construct a safe query with the IN clause
 							$status_placeholders = array();
-							$all_values = $meta_query_values;
+							$status_values = array();
 							
 							foreach ($statuses as $s) {
 								$status_placeholders[] = '%s';
-								$all_values[] = 'wc-' . str_replace('wc-', '', $s);
+								$status_values[] = 'wc-' . str_replace('wc-', '', $s);
 							}
 							
-							$status_in_sql = implode(',', $status_placeholders);
+							// Build the complete query properly
+							$meta_conditions_sql = implode(' OR ', $prepared_meta_conditions);
 							
-							$expanded_results = $wpdb->get_col($wpdb->prepare(
-								"SELECT DISTINCT post_id FROM {$wpdb->postmeta}
-								WHERE ($meta_query_sql)
-								AND post_id IN (
-									SELECT ID FROM {$wpdb->posts} 
-									WHERE post_type = 'shop_order'
-									AND post_status IN ($status_in_sql)
-								) LIMIT 100",
-								...$all_values
-							));
+							// The challenge is with the interpolated meta_conditions_sql
+							// We need an approach without variable interpolation
+							
+							// Since the meta conditions are already properly prepared,
+							// Create a clean inline query with only placeholders
+							$meta_subquery = "SELECT DISTINCT post_id FROM {$wpdb->postmeta} WHERE " . 
+								implode(' OR ', $prepared_meta_conditions);
+							
+							// For multiple statuses, use the same individual query approach
+							$result_ids = array();
+							
+							// Loop through each combination of meta key and status
+							foreach ($meta_keys as $key) {
+								foreach ($statuses as $s) {
+									$formatted_status = 'wc-' . str_replace('wc-', '', $s);
+									
+									// Query for each status
+									$status_results = $wpdb->get_col($wpdb->prepare(
+										"SELECT DISTINCT p.ID 
+										FROM {$wpdb->posts} p
+										INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+										WHERE p.post_type = 'shop_order'
+										AND p.post_status = %s
+										AND pm.meta_key = %s
+										AND pm.meta_value LIKE %s
+										LIMIT 100",
+										$formatted_status,
+										$key,
+										$search_term
+									));
+									
+									// Merge results
+									if (!empty($status_results)) {
+										$result_ids = array_merge($result_ids, $status_results);
+									}
+								}
+							}
+							
+							// Remove duplicates
+							$expanded_results = array_unique($result_ids);
 						}
 					}
 					// No status filter - simpler query
 					else {
-						$expanded_results = $wpdb->get_col($wpdb->prepare(
-							"SELECT DISTINCT post_id FROM {$wpdb->postmeta}
-							WHERE ($meta_query_sql)
-							AND post_id IN (
-								SELECT ID FROM {$wpdb->posts} 
-								WHERE post_type = 'shop_order'
-							) LIMIT 100",
-							...$meta_query_values
-						));
+						// For no status filter, use individual queries for each meta key
+						$result_ids = array();
+						
+						// Loop through each meta key separately
+						foreach ($meta_keys as $key) {
+							$query_results = $wpdb->get_col($wpdb->prepare(
+								"SELECT DISTINCT p.ID 
+								FROM {$wpdb->posts} p
+								INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+								WHERE p.post_type = 'shop_order'
+								AND pm.meta_key = %s
+								AND pm.meta_value LIKE %s
+								LIMIT 100",
+								$key,
+								$search_term
+							));
+							
+							// Merge results
+							if (!empty($query_results)) {
+								$result_ids = array_merge($result_ids, $query_results);
+							}
+						}
+						
+						// Remove duplicates
+						$expanded_results = array_unique($result_ids);
 					}
 				}
 				
