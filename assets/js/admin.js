@@ -6,6 +6,120 @@
 
   // Initialize when document is ready
   $(document).ready(function () {
+    // Check if the WooCommerce Data Cleanup page is present
+    if (!$(".wc-data-cleanup").length) {
+      return;
+    }
+
+    // Global variables for all functionality
+    var currentStatus = "";
+    var currentDateFrom = "";
+    var currentDateTo = "";
+    var currentPage = 1;
+    var selectedBookings = [];
+    var dateRangeStatus = "";
+    var dateRangeFrom = "";
+    var dateRangeTo = "";
+    var dateRangePage = 1;
+    var selectedDateBookings = [];
+
+    // Custom confirmation dialog function
+    function showConfirmation(title, message, onConfirm) {
+      var $modal = $(".wc-data-cleanup-confirm-modal");
+      var $title = $modal.find(".wc-data-cleanup-confirm-modal-title");
+      var $message = $modal.find(".wc-data-cleanup-confirm-modal-message");
+      var $proceedBtn = $modal.find(".wc-data-cleanup-confirm-modal-proceed");
+
+      // Set content
+      $title.text(title);
+      $message.text(message);
+
+      // Clear previous click handlers
+      $proceedBtn.off("click");
+
+      // Set new click handler
+      $proceedBtn.on("click", function () {
+        // Hide modal
+        $modal.hide();
+        // Execute callback
+        if (typeof onConfirm === "function") {
+          onConfirm();
+        }
+      });
+
+      // Close handlers
+      $modal
+        .find(
+          ".wc-data-cleanup-confirm-modal-close, .wc-data-cleanup-confirm-modal-cancel"
+        )
+        .off("click")
+        .on("click", function () {
+          $modal.hide();
+        });
+
+      // Show modal
+      $modal.show();
+
+      // Close when clicking outside
+      $(window).on("click", function (event) {
+        if ($(event.target).is($modal)) {
+          $modal.hide();
+        }
+      });
+
+      // ESC key to close
+      $(document).on("keydown", function (e) {
+        if (e.key === "Escape" && $modal.is(":visible")) {
+          $modal.hide();
+        }
+      });
+    }
+
+    // Override delete buttons in the bookings tab to show preview first
+    $(".wc-data-cleanup-delete-bookings-by-status").on("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Trigger the preview button first
+      $(this)
+        .closest("tr")
+        .find(".wc-data-cleanup-preview-bookings-by-status")
+        .trigger("click");
+
+      // Then show message to user
+      setTimeout(function () {
+        $(".wc-data-cleanup-message").html(
+          '<div class="notice notice-info"><p>Please review the bookings listed above and use the "Delete Selected Bookings" button to proceed with deletion.</p></div>'
+        );
+      }, 500);
+
+      return false;
+    });
+
+    // Override delete by date range button to preview first
+    $(".wc-data-cleanup-delete-bookings-by-date-range").on(
+      "click",
+      function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Trigger the preview button first
+        $(this)
+          .closest(".wc-data-cleanup-action-group")
+          .find(".wc-data-cleanup-preview-bookings-by-date-range")
+          .trigger("click");
+
+        // Then show message to user
+        setTimeout(function () {
+          $(".wc-data-cleanup-message").html(
+            '<div class="notice notice-info"><p>Please review the bookings listed above and use the "Delete Selected Bookings" button to proceed with deletion.</p></div>'
+          );
+        }, 500);
+
+        return false;
+      }
+    );
+
     // Initialize Select2 for user selection
     $("#wc-data-cleanup-user-select").select2({
       ajax: {
@@ -397,9 +511,6 @@
             success: function (data) {
               $previewLoadingMsg.hide();
 
-              // Debug info
-              console.log("Preview data received:", data);
-
               if (data && data.results && data.results.length > 0) {
                 $.each(data.results, function (i, order) {
                   var $orderItem = $("<li>").html(
@@ -428,7 +539,6 @@
                   $previewList.append($moreItem);
                 }
               } else {
-                console.log("No orders found or invalid data structure");
                 $previewEmptyMsg.show();
               }
             },
@@ -1325,6 +1435,233 @@
       );
     });
 
+    // Enhance booking date picker functionality
+    if ($("#wc-data-cleanup-booking-date-from").length > 0) {
+      // Make date inputs open the calendar when clicked anywhere on the input
+      $("#wc-data-cleanup-booking-date-from, #wc-data-cleanup-booking-date-to")
+        .on("click", function () {
+          // Open the date picker
+          this.showPicker();
+        })
+        // Handle the calendar icon click as well
+        .next(".dashicons-calendar-alt")
+        .on("click", function () {
+          $(this).prev("input").click();
+        });
+    }
+
+    // Booking actions
+    $(".wc-data-cleanup-delete-all-bookings").on("click", function () {
+      showConfirmation(
+        "Delete All Bookings",
+        "Are you sure you want to delete all WooCommerce bookings? This action cannot be undone.",
+        function () {
+          deleteBookings("delete_all");
+        }
+      );
+    });
+
+    // Legacy handler for Select2-based booking selection (not used in the current UI)
+    // $(".wc-data-cleanup-delete-selected-bookings").on("click", function () {
+    //   var selectedBookings = $("#wc-data-cleanup-booking-select").val();
+    //   if (selectedBookings && selectedBookings.length > 0) {
+    //     showModal(
+    //       "Delete Selected Bookings",
+    //       "Are you sure you want to delete the selected bookings? This action cannot be undone.",
+    //       function () {
+    //         deleteBookings("delete_selected", selectedBookings);
+    //       }
+    //     );
+    //   } else {
+    //     alert(wc_data_cleanup_params.error_no_selection);
+    //   }
+    // });
+
+    $(".wc-data-cleanup-delete-except-bookings").on("click", function () {
+      var selectedBookings = $("#wc-data-cleanup-booking-select").val();
+      if (selectedBookings && selectedBookings.length > 0) {
+        showModal(
+          "Delete All Except Selected Bookings",
+          "Are you sure you want to delete all bookings except the selected ones? This action cannot be undone.",
+          function () {
+            deleteBookings("delete_except", selectedBookings);
+          }
+        );
+      } else {
+        alert(wc_data_cleanup_params.error_no_selection);
+      }
+    });
+
+    $(".wc-data-cleanup-delete-bookings-by-status").on("click", function () {
+      var status = $("#wc-data-cleanup-booking-status").val();
+      var statusText = $(
+        "#wc-data-cleanup-booking-status option:selected"
+      ).text();
+      if (status) {
+        showModal(
+          "Delete Bookings by Status",
+          'Are you sure you want to delete all bookings with status "' +
+            statusText +
+            '"? This action cannot be undone.',
+          function () {
+            deleteBookings("delete_by_status", [], status);
+          }
+        );
+      } else {
+        alert(wc_data_cleanup_params.error_no_selection);
+      }
+    });
+
+    $(".wc-data-cleanup-delete-bookings-by-date-range").on(
+      "click",
+      function () {
+        var dateFrom = $("#wc-data-cleanup-booking-date-from").val();
+        var dateTo = $("#wc-data-cleanup-booking-date-to").val();
+
+        if (!dateFrom || !dateTo) {
+          alert("Please select both start and end dates.");
+          return;
+        }
+
+        var $button = $(this);
+
+        showConfirmation(
+          "Delete Bookings by Date Range",
+          "Are you sure you want to delete ALL bookings between " +
+            dateFrom +
+            " and " +
+            dateTo +
+            "? This action cannot be undone!",
+          function () {
+            var deleteOrders = $("#wc-data-cleanup-booking-delete-orders").is(
+              ":checked"
+            );
+
+            // Show spinner and disable button
+            $button.prop("disabled", true);
+            $(".wc-data-cleanup-spinner").addClass("is-active");
+
+            // Delete all bookings in date range
+            $.ajax({
+              url: wc_data_cleanup_params.ajax_url,
+              type: "POST",
+              data: {
+                action: "wc_data_cleanup_delete_bookings_by_date_range",
+                nonce: wc_data_cleanup_params.nonce,
+                date_from: dateFrom,
+                date_to: dateTo,
+                delete_order: deleteOrders,
+              },
+              success: function (response) {
+                $(".wc-data-cleanup-spinner").removeClass("is-active");
+                $button.prop("disabled", false);
+
+                if (response.success) {
+                  // Show success message
+                  $(".wc-data-cleanup-message").html(
+                    '<div class="notice notice-success"><p>' +
+                      response.data.message +
+                      "</p></div>"
+                  );
+
+                  // Hide date range preview if visible
+                  $(".wc-data-cleanup-date-bookings-preview").hide();
+                  selectedDateBookings = [];
+
+                  // Reload the page to update counts
+                  setTimeout(function () {
+                    window.location.reload();
+                  }, 2000);
+                } else {
+                  // Show error message
+                  $(".wc-data-cleanup-message").html(
+                    '<div class="notice notice-error"><p>' +
+                      (response.data
+                        ? response.data.message
+                        : "Error deleting bookings.") +
+                      "</p></div>"
+                  );
+                }
+              },
+              error: function () {
+                $(".wc-data-cleanup-spinner").removeClass("is-active");
+                $button.prop("disabled", false);
+                $(".wc-data-cleanup-message").html(
+                  '<div class="notice notice-error"><p>Server error. Please try again.</p></div>'
+                );
+              },
+            });
+          }
+        );
+      }
+    );
+
+    /**
+     * Delete bookings via AJAX
+     *
+     * @param {string} actionType    Type of delete action
+     * @param {Array}  bookingIds    Array of booking IDs (optional)
+     * @param {string} bookingStatus Booking status (optional)
+     * @param {string} dateFrom      Start date in Y-m-d format (optional)
+     * @param {string} dateTo        End date in Y-m-d format (optional)
+     * @param {Object} options       Additional options
+     */
+    function deleteBookings(
+      actionType,
+      bookingIds,
+      bookingStatus,
+      dateFrom,
+      dateTo,
+      options
+    ) {
+      showSpinner();
+      clearMessage();
+
+      // Get the delete orders option
+      if (!options) {
+        options = {};
+      }
+      options.delete_order = $("#wc-data-cleanup-booking-delete-orders").is(
+        ":checked"
+      );
+
+      $.ajax({
+        url: wc_data_cleanup_params.ajax_url,
+        type: "POST",
+        data: {
+          action: "wc_data_cleanup_delete_bookings",
+          nonce: wc_data_cleanup_params.nonce,
+          action_type: actionType,
+          booking_ids: bookingIds || [],
+          booking_status: bookingStatus || "",
+          date_from: dateFrom || "",
+          date_to: dateTo || "",
+          options: options,
+        },
+        success: function (response) {
+          hideSpinner();
+          if (response.success) {
+            showSuccessMessage(response.data.message);
+            // Reset selection
+            $("#wc-data-cleanup-booking-select").val(null).trigger("change");
+            // Clear the Select2 cache
+            $("#wc-data-cleanup-booking-select").empty();
+
+            // Reload the page after a delay to show updated counts
+            setTimeout(function () {
+              window.location.reload();
+            }, 2000);
+          } else {
+            showErrorMessage(response.data.message);
+          }
+        },
+        error: function () {
+          hideSpinner();
+          showErrorMessage(wc_data_cleanup_params.error);
+        },
+      });
+    }
+
     $(".wc-data-cleanup-delete-selected-orders").on("click", function () {
       var selectedOrders = $("#wc-data-cleanup-order-select").val();
       if (selectedOrders && selectedOrders.length > 0) {
@@ -1405,34 +1742,16 @@
      * @param {string} options     Optional HTML for options
      */
     function showModal(title, content, callback, options) {
-      // Set modal title and content
-      $(".wc-data-cleanup-modal-title").text(title);
-      $(".wc-data-cleanup-modal-body").html(content);
-
-      // Add options if provided
-      if (options) {
-        $(".wc-data-cleanup-modal-body").append(options);
-      }
-
-      // Set confirm button action
-      $(".wc-data-cleanup-modal-confirm")
-        .off("click")
-        .on("click", function () {
-          closeModal();
-          callback();
-        });
-
-      // Show modal
-      $(".wc-data-cleanup-modal-overlay").fadeIn(200);
-      $(".wc-data-cleanup-modal").fadeIn(200);
+      // Use our custom confirmation dialog instead
+      showConfirmation(title, content, callback);
     }
 
     /**
-     * Close modal dialog
+     * Close modal dialog - no longer needed as we use the custom confirmation dialog
      */
     function closeModal() {
-      $(".wc-data-cleanup-modal-overlay").fadeOut(200);
-      $(".wc-data-cleanup-modal").fadeOut(200);
+      // This function is kept for backward compatibility
+      // Now we use the showConfirmation function which handles its own closing
     }
 
     /**
@@ -1621,12 +1940,832 @@
     /**
      * Show error message
      *
-     * @param {string} message Message to show
+     * @param {string} message Error message
      */
     function showErrorMessage(message) {
       $(".wc-data-cleanup-message")
         .addClass("error")
         .html("<p>" + message + "</p>");
+    }
+
+    // Test bookings API button
+    $("#wc-data-cleanup-test-bookings").on("click", function () {
+      var $button = $(this);
+      var $result = $("#wc-data-cleanup-test-result");
+
+      $button.prop("disabled", true).text("Testing...");
+      $result.empty();
+
+      $.ajax({
+        url: wc_data_cleanup_params.ajax_url,
+        dataType: "json",
+        data: {
+          action: "wc_data_cleanup_test_bookings",
+          nonce: wc_data_cleanup_params.nonce,
+        },
+        success: function (response) {
+          $button.prop("disabled", false).text("Test Bookings API");
+          if (response.success) {
+            // Format the result data
+            var html = "<h4>Test Results:</h4><ul>";
+            html +=
+              "<li>WC_Booking class exists: " +
+              (response.data.bookings_class_exists ? "Yes" : "No") +
+              "</li>";
+            html +=
+              "<li>wc_booking post type exists: " +
+              (response.data.post_type_exists ? "Yes" : "No") +
+              "</li>";
+
+            // Format function exists info
+            if (typeof response.data.function_exists === "object") {
+              html += "<li>Required functions:<ul>";
+              for (var func in response.data.function_exists) {
+                html +=
+                  "<li>" +
+                  func +
+                  ": " +
+                  (response.data.function_exists[func] ? "Yes" : "No") +
+                  "</li>";
+              }
+              html += "</ul></li>";
+            } else {
+              html +=
+                "<li>wc_get_booking_status_name function exists: " +
+                (response.data.function_exists ? "Yes" : "No") +
+                "</li>";
+            }
+
+            html +=
+              "<li>is_bookings_active check: " +
+              (response.data.is_bookings_active ? "Yes" : "No") +
+              "</li>";
+
+            // Check if the WC_Data_Cleanup_Bookings class is loaded
+            if (response.data.bookings_class_loaded !== undefined) {
+              html +=
+                "<li>WC_Data_Cleanup_Bookings class loaded: " +
+                (response.data.bookings_class_loaded ? "Yes" : "No") +
+                "</li>";
+            }
+
+            // Add compatibility check if available
+            if (response.data.compatibility_check !== undefined) {
+              html +=
+                "<li>Full compatibility check: " +
+                (response.data.compatibility_check ? "Pass" : "Fail") +
+                "</li>";
+            }
+
+            // Format sample booking info
+            html += "<li>Sample booking: ";
+            if (typeof response.data.sample_booking === "object") {
+              if (response.data.sample_booking.error) {
+                html += "Error: " + response.data.sample_booking.error;
+              } else {
+                html += "<ul>";
+                for (var key in response.data.sample_booking) {
+                  html +=
+                    "<li>" +
+                    key +
+                    ": " +
+                    response.data.sample_booking[key] +
+                    "</li>";
+                }
+                html += "</ul>";
+              }
+            } else {
+              html += response.data.sample_booking;
+            }
+            html += "</li>";
+
+            html += "</ul>";
+            $result.html(html);
+          } else {
+            $result.html(
+              "<p class='error'>Error: " + response.data.message + "</p>"
+            );
+          }
+        },
+        error: function () {
+          $button.prop("disabled", false).text("Test Bookings API");
+          $result.html(
+            "<p class='error'>Error: Could not connect to the server.</p>"
+          );
+        },
+      });
+    });
+
+    // Preview bookings by status
+    $(".wc-data-cleanup-preview-bookings-by-status").on("click", function () {
+      currentStatus = $(this).data("status");
+      currentDateFrom = "";
+      currentDateTo = "";
+      currentPage = 1;
+      selectedBookings = [];
+
+      // Update preview title
+      $(".wc-data-cleanup-preview-title").html(
+        "Bookings List: " +
+          $(this).closest("tr").find("td:first").text() +
+          ' <span class="wc-data-cleanup-preview-badge">' +
+          $(this).data("count") +
+          "</span>"
+      );
+
+      // Show preview section and load bookings
+      $(".wc-data-cleanup-bookings-preview").show();
+      loadBookingsPreview();
+    });
+
+    // Preview bookings by date range
+    $(".wc-data-cleanup-preview-bookings-by-date-range").on(
+      "click",
+      function () {
+        var dateFrom = $("#wc-data-cleanup-booking-date-from").val();
+        var dateTo = $("#wc-data-cleanup-booking-date-to").val();
+
+        if (!dateFrom || !dateTo) {
+          alert("Please select both start and end dates.");
+          return;
+        }
+
+        currentStatus = "";
+        currentDateFrom = dateFrom;
+        currentDateTo = dateTo;
+        currentPage = 1;
+        selectedBookings = [];
+
+        // Update preview title
+        $(".wc-data-cleanup-preview-title").html(
+          "Bookings List: " + dateFrom + " to " + dateTo
+        );
+
+        // Show preview section and load bookings
+        $(".wc-data-cleanup-bookings-preview").show();
+        loadBookingsPreview();
+      }
+    );
+
+    // Close preview
+    $(".wc-data-cleanup-close-preview").on("click", function () {
+      $(".wc-data-cleanup-bookings-preview").hide();
+      selectedBookings = [];
+    });
+
+    // Handle pagination clicks
+    $(document).on(
+      "click",
+      ".wc-data-cleanup-bookings-pagination .page-numbers:not(.current)",
+      function (e) {
+        e.preventDefault();
+        currentPage = parseInt($(this).data("page"));
+        loadBookingsPreview();
+      }
+    );
+
+    // Select all bookings - use on to handle dynamically loaded elements
+    $(document).on("change", "#booking-select-all", function () {
+      var isChecked = $(this).prop("checked");
+      $(".booking-checkbox").prop("checked", isChecked);
+
+      if (isChecked) {
+        // Add all visible booking IDs to selected bookings
+        $(".booking-checkbox").each(function () {
+          var bookingId = $(this).val();
+          if (selectedBookings.indexOf(bookingId) === -1) {
+            selectedBookings.push(bookingId);
+          }
+        });
+      } else {
+        // Remove all visible booking IDs from selected bookings
+        $(".booking-checkbox").each(function () {
+          var bookingId = $(this).val();
+          var index = selectedBookings.indexOf(bookingId);
+          if (index !== -1) {
+            selectedBookings.splice(index, 1);
+          }
+        });
+      }
+
+      updateSelectionCount();
+    });
+
+    // Handle individual booking checkbox changes
+    $(document).on("change", ".booking-checkbox", function () {
+      var bookingId = $(this).val();
+
+      if ($(this).prop("checked")) {
+        // Add to selected bookings if not already there
+        if (selectedBookings.indexOf(bookingId) === -1) {
+          selectedBookings.push(bookingId);
+        }
+      } else {
+        // Remove from selected bookings
+        var index = selectedBookings.indexOf(bookingId);
+        if (index !== -1) {
+          selectedBookings.splice(index, 1);
+        }
+      }
+
+      // Update the "select all" checkbox
+      var allChecked =
+        $(".booking-checkbox:checked").length === $(".booking-checkbox").length;
+      $("#booking-select-all").prop("checked", allChecked);
+
+      updateSelectionCount();
+    });
+
+    // Delete selected bookings button
+    $(".wc-data-cleanup-delete-selected-bookings").on("click", function () {
+      if (selectedBookings.length === 0) {
+        alert("Please select at least one booking to delete.");
+        return;
+      }
+
+      var $button = $(this);
+
+      showConfirmation(
+        "Confirm Deletion",
+        "Are you sure you want to delete " +
+          selectedBookings.length +
+          " selected bookings? This action cannot be undone!",
+        function () {
+          var deleteOrders = $("#wc-data-cleanup-booking-delete-orders").is(
+            ":checked"
+          );
+
+          // Show spinner and disable button
+          $button.prop("disabled", true);
+          $(".wc-data-cleanup-spinner").addClass("is-active");
+
+          $.ajax({
+            url: wc_data_cleanup_params.ajax_url,
+            type: "POST",
+            data: {
+              action: "wc_data_cleanup_delete_bookings",
+              nonce: wc_data_cleanup_params.nonce,
+              booking_ids: selectedBookings,
+              delete_order: deleteOrders,
+            },
+            success: function (response) {
+              $(".wc-data-cleanup-spinner").removeClass("is-active");
+              $button.prop("disabled", false);
+
+              if (response.success) {
+                // Show success message
+                $(".wc-data-cleanup-message").html(
+                  '<div class="notice notice-success"><p>' +
+                    response.data.message +
+                    "</p></div>"
+                );
+
+                // Hide preview section and reset selected bookings
+                $(".wc-data-cleanup-bookings-preview").hide();
+                selectedBookings = [];
+
+                // Reload the page to update counts
+                setTimeout(function () {
+                  window.location.reload();
+                }, 2000);
+              } else {
+                // Show error message
+                $(".wc-data-cleanup-message").html(
+                  '<div class="notice notice-error"><p>' +
+                    (response.data
+                      ? response.data.message
+                      : "Error deleting bookings.") +
+                    "</p></div>"
+                );
+              }
+            },
+            error: function () {
+              $(".wc-data-cleanup-spinner").removeClass("is-active");
+              $button.prop("disabled", false);
+              $(".wc-data-cleanup-message").html(
+                '<div class="notice notice-error"><p>Server error. Please try again.</p></div>'
+              );
+            },
+          });
+        }
+      );
+    });
+
+    // Function to load bookings preview
+    function loadBookingsPreview() {
+      // Show loading and hide table
+      $(".wc-data-cleanup-bookings-list .wc-data-cleanup-loading").show();
+      $(
+        ".wc-data-cleanup-bookings-list .wc-data-cleanup-bookings-table, .wc-data-cleanup-bookings-list .wc-data-cleanup-no-bookings"
+      ).hide();
+      $(
+        ".wc-data-cleanup-bookings-list .wc-data-cleanup-bookings-table tbody"
+      ).empty();
+      $(".wc-data-cleanup-bookings-pagination").empty();
+
+      // Disable delete button while loading
+      $(".wc-data-cleanup-delete-selected-bookings").prop("disabled", true);
+
+      // Make AJAX request to get bookings
+      $.ajax({
+        url: wc_data_cleanup_params.ajax_url,
+        type: "GET",
+        data: {
+          action: "wc_data_cleanup_get_bookings_preview",
+          nonce: wc_data_cleanup_params.nonce,
+          status: currentStatus,
+          date_from: currentDateFrom,
+          date_to: currentDateTo,
+          page: currentPage,
+          limit: 20,
+        },
+        success: function (response) {
+          $(".wc-data-cleanup-bookings-list .wc-data-cleanup-loading").hide();
+
+          if (
+            response.success &&
+            response.data.bookings &&
+            response.data.bookings.length > 0
+          ) {
+            // Update preview badge with total count
+            $(".wc-data-cleanup-preview-badge").text(response.data.total);
+
+            // Populate table with bookings
+            var bookings = response.data.bookings;
+            var tbody = $(
+              ".wc-data-cleanup-bookings-list .wc-data-cleanup-bookings-table tbody"
+            );
+
+            for (var i = 0; i < bookings.length; i++) {
+              var booking = bookings[i];
+              var statusClass =
+                "booking-status-" +
+                booking.status
+                  .replace("_", "-")
+                  .replace(" ", "-")
+                  .toLowerCase();
+              var isChecked = selectedBookings.indexOf(booking.id) !== -1;
+
+              var row =
+                "<tr>" +
+                '<td><input type="checkbox" class="booking-checkbox" value="' +
+                booking.id +
+                '"' +
+                (isChecked ? " checked" : "") +
+                "></td>" +
+                "<td>#" +
+                booking.id +
+                "</td>" +
+                "<td>" +
+                booking.date +
+                "</td>" +
+                '<td><span class="booking-status-badge ' +
+                statusClass +
+                '">' +
+                booking.status_label +
+                "</span></td>" +
+                "<td>" +
+                booking.product_name +
+                "</td>" +
+                "<td>" +
+                booking.customer_name +
+                "</td>" +
+                "<td>" +
+                booking.cost +
+                "</td>" +
+                "<td>" +
+                booking.start_date +
+                "</td>" +
+                "</tr>";
+
+              tbody.append(row);
+            }
+
+            // Show table
+            $(
+              ".wc-data-cleanup-bookings-list .wc-data-cleanup-bookings-table"
+            ).show();
+
+            // Create pagination
+            if (response.data.total > 20) {
+              var totalPages = Math.ceil(response.data.total / 20);
+              var pagination = "";
+
+              // Previous page
+              if (currentPage > 1) {
+                pagination +=
+                  '<span class="page-numbers" data-page="' +
+                  (currentPage - 1) +
+                  '">« Prev</span>';
+              }
+
+              // Page numbers
+              var startPage = Math.max(1, currentPage - 2);
+              var endPage = Math.min(totalPages, currentPage + 2);
+
+              for (var i = startPage; i <= endPage; i++) {
+                if (i === currentPage) {
+                  pagination +=
+                    '<span class="page-numbers current">' + i + "</span>";
+                } else {
+                  pagination +=
+                    '<span class="page-numbers" data-page="' +
+                    i +
+                    '">' +
+                    i +
+                    "</span>";
+                }
+              }
+
+              // Next page
+              if (currentPage < totalPages) {
+                pagination +=
+                  '<span class="page-numbers" data-page="' +
+                  (currentPage + 1) +
+                  '">Next »</span>';
+              }
+
+              $(".wc-data-cleanup-bookings-pagination").html(pagination);
+            }
+
+            // Enable delete button if bookings are selected
+            updateSelectionCount();
+          } else {
+            // Show "no bookings" message
+            $(
+              ".wc-data-cleanup-bookings-list .wc-data-cleanup-no-bookings"
+            ).show();
+            $(".wc-data-cleanup-preview-badge").text("0");
+          }
+        },
+        error: function () {
+          $(".wc-data-cleanup-bookings-list .wc-data-cleanup-loading").hide();
+          $(".wc-data-cleanup-bookings-list .wc-data-cleanup-no-bookings")
+            .show()
+            .html("<p>Error loading bookings. Please try again.</p>");
+        },
+      });
+    }
+
+    // Update selection count and enable/disable delete button
+    function updateSelectionCount() {
+      $(".selection-count").text(selectedBookings.length);
+      $(".wc-data-cleanup-delete-selected-bookings").prop(
+        "disabled",
+        selectedBookings.length === 0
+      );
+    }
+
+    // Preview bookings by date range
+    $(".wc-data-cleanup-preview-bookings-by-date-range").on(
+      "click",
+      function () {
+        var dateFrom = $("#wc-data-cleanup-booking-date-from").val();
+        var dateTo = $("#wc-data-cleanup-booking-date-to").val();
+
+        if (!dateFrom || !dateTo) {
+          alert("Please select both start and end dates.");
+          return;
+        }
+
+        dateRangeFrom = dateFrom;
+        dateRangeTo = dateTo;
+        dateRangePage = 1;
+        selectedDateBookings = [];
+
+        // Update preview title
+        $(".wc-data-cleanup-date-preview-title").html(
+          "Bookings in Date Range: " +
+            dateFrom +
+            " to " +
+            dateTo +
+            ' <span class="wc-data-cleanup-date-preview-badge">0</span>'
+        );
+
+        // Show preview section and load bookings
+        $(".wc-data-cleanup-date-bookings-preview").show();
+        loadDateRangeBookings();
+      }
+    );
+
+    // Close date preview
+    $(".wc-data-cleanup-close-date-preview").on("click", function () {
+      $(".wc-data-cleanup-date-bookings-preview").hide();
+      selectedDateBookings = [];
+    });
+
+    // Handle date range pagination clicks
+    $(document).on(
+      "click",
+      ".wc-data-cleanup-date-bookings-pagination .page-numbers:not(.current)",
+      function (e) {
+        e.preventDefault();
+        dateRangePage = parseInt($(this).data("page"));
+        loadDateRangeBookings();
+      }
+    );
+
+    // Select all date range bookings
+    $(document).on("change", "#date-range-select-all", function () {
+      var isChecked = $(this).prop("checked");
+      $(".date-booking-checkbox").prop("checked", isChecked);
+
+      if (isChecked) {
+        // Add all visible booking IDs to selected bookings
+        $(".date-booking-checkbox").each(function () {
+          var bookingId = $(this).val();
+          if (selectedDateBookings.indexOf(bookingId) === -1) {
+            selectedDateBookings.push(bookingId);
+          }
+        });
+      } else {
+        // Remove all visible booking IDs from selected bookings
+        $(".date-booking-checkbox").each(function () {
+          var bookingId = $(this).val();
+          var index = selectedDateBookings.indexOf(bookingId);
+          if (index !== -1) {
+            selectedDateBookings.splice(index, 1);
+          }
+        });
+      }
+
+      updateDateSelectionCount();
+    });
+
+    // Handle individual date booking checkbox changes
+    $(document).on("change", ".date-booking-checkbox", function () {
+      var bookingId = $(this).val();
+
+      if ($(this).prop("checked")) {
+        // Add to selected bookings if not already there
+        if (selectedDateBookings.indexOf(bookingId) === -1) {
+          selectedDateBookings.push(bookingId);
+        }
+      } else {
+        // Remove from selected bookings
+        var index = selectedDateBookings.indexOf(bookingId);
+        if (index !== -1) {
+          selectedDateBookings.splice(index, 1);
+        }
+      }
+
+      // Update the "select all" checkbox
+      var allChecked =
+        $(".date-booking-checkbox:checked").length ===
+        $(".date-booking-checkbox").length;
+      $("#date-range-select-all").prop("checked", allChecked);
+
+      updateDateSelectionCount();
+    });
+
+    // Delete selected date range bookings button
+    $(".wc-data-cleanup-delete-selected-date-bookings").on(
+      "click",
+      function () {
+        if (selectedDateBookings.length === 0) {
+          alert("Please select at least one booking to delete.");
+          return;
+        }
+
+        var $button = $(this);
+
+        showConfirmation(
+          "Confirm Deletion",
+          "Are you sure you want to delete " +
+            selectedDateBookings.length +
+            " selected bookings? This action cannot be undone!",
+          function () {
+            var deleteOrders = $("#wc-data-cleanup-booking-delete-orders").is(
+              ":checked"
+            );
+
+            // Show spinner and disable button
+            $button.prop("disabled", true);
+            $(".wc-data-cleanup-spinner").addClass("is-active");
+
+            $.ajax({
+              url: wc_data_cleanup_params.ajax_url,
+              type: "POST",
+              data: {
+                action: "wc_data_cleanup_delete_bookings",
+                nonce: wc_data_cleanup_params.nonce,
+                booking_ids: selectedDateBookings,
+                delete_order: deleteOrders,
+              },
+              success: function (response) {
+                $(".wc-data-cleanup-spinner").removeClass("is-active");
+                $button.prop("disabled", false);
+
+                if (response.success) {
+                  // Show success message
+                  $(".wc-data-cleanup-message").html(
+                    '<div class="notice notice-success"><p>' +
+                      response.data.message +
+                      "</p></div>"
+                  );
+
+                  // Hide preview section and reset selected bookings
+                  $(".wc-data-cleanup-date-bookings-preview").hide();
+                  selectedDateBookings = [];
+
+                  // Reload the page to update counts
+                  setTimeout(function () {
+                    window.location.reload();
+                  }, 2000);
+                } else {
+                  // Show error message
+                  $(".wc-data-cleanup-message").html(
+                    '<div class="notice notice-error"><p>' +
+                      (response.data
+                        ? response.data.message
+                        : "Error deleting bookings.") +
+                      "</p></div>"
+                  );
+                }
+              },
+              error: function () {
+                $(".wc-data-cleanup-spinner").removeClass("is-active");
+                $button.prop("disabled", false);
+                $(".wc-data-cleanup-message").html(
+                  '<div class="notice notice-error"><p>Server error. Please try again.</p></div>'
+                );
+              },
+            });
+          }
+        );
+      }
+    );
+
+    // Function to load date range bookings
+    function loadDateRangeBookings() {
+      // Show loading and hide table
+      $(".wc-data-cleanup-date-bookings-list .wc-data-cleanup-loading").show();
+      $(
+        ".wc-data-cleanup-date-bookings-list .wc-data-cleanup-date-bookings-table, .wc-data-cleanup-date-bookings-list .wc-data-cleanup-no-bookings"
+      ).hide();
+      $(
+        ".wc-data-cleanup-date-bookings-list .wc-data-cleanup-date-bookings-table tbody"
+      ).empty();
+      $(".wc-data-cleanup-date-bookings-pagination").empty();
+
+      // Disable delete button while loading
+      $(".wc-data-cleanup-delete-selected-date-bookings").prop(
+        "disabled",
+        true
+      );
+
+      // Make AJAX request to get bookings
+      $.ajax({
+        url: wc_data_cleanup_params.ajax_url,
+        type: "GET",
+        data: {
+          action: "wc_data_cleanup_get_bookings_preview",
+          nonce: wc_data_cleanup_params.nonce,
+          status: dateRangeStatus,
+          date_from: dateRangeFrom,
+          date_to: dateRangeTo,
+          page: dateRangePage,
+          limit: 20,
+        },
+        success: function (response) {
+          $(
+            ".wc-data-cleanup-date-bookings-list .wc-data-cleanup-loading"
+          ).hide();
+
+          if (
+            response.success &&
+            response.data.bookings &&
+            response.data.bookings.length > 0
+          ) {
+            // Update preview badge with total count
+            $(".wc-data-cleanup-date-preview-badge").text(response.data.total);
+
+            // Populate table with bookings
+            var bookings = response.data.bookings;
+            var tbody = $(
+              ".wc-data-cleanup-date-bookings-list .wc-data-cleanup-date-bookings-table tbody"
+            );
+
+            for (var i = 0; i < bookings.length; i++) {
+              var booking = bookings[i];
+              var statusClass =
+                "booking-status-" +
+                booking.status
+                  .replace("_", "-")
+                  .replace(" ", "-")
+                  .toLowerCase();
+              var isChecked = selectedDateBookings.indexOf(booking.id) !== -1;
+
+              var row =
+                "<tr>" +
+                '<td><input type="checkbox" class="date-booking-checkbox" value="' +
+                booking.id +
+                '"' +
+                (isChecked ? " checked" : "") +
+                "></td>" +
+                "<td>#" +
+                booking.id +
+                "</td>" +
+                "<td>" +
+                booking.date +
+                "</td>" +
+                '<td><span class="booking-status-badge ' +
+                statusClass +
+                '">' +
+                booking.status_label +
+                "</span></td>" +
+                "<td>" +
+                booking.product_name +
+                "</td>" +
+                "<td>" +
+                booking.customer_name +
+                "</td>" +
+                "<td>" +
+                booking.cost +
+                "</td>" +
+                "<td>" +
+                booking.start_date +
+                "</td>" +
+                "</tr>";
+
+              tbody.append(row);
+            }
+
+            // Show table
+            $(
+              ".wc-data-cleanup-date-bookings-list .wc-data-cleanup-date-bookings-table"
+            ).show();
+
+            // Create pagination
+            if (response.data.total > 20) {
+              var totalPages = Math.ceil(response.data.total / 20);
+              var pagination = "";
+
+              // Previous page
+              if (dateRangePage > 1) {
+                pagination +=
+                  '<span class="page-numbers" data-page="' +
+                  (dateRangePage - 1) +
+                  '">« Prev</span>';
+              }
+
+              // Page numbers
+              var startPage = Math.max(1, dateRangePage - 2);
+              var endPage = Math.min(totalPages, dateRangePage + 2);
+
+              for (var i = startPage; i <= endPage; i++) {
+                if (i === dateRangePage) {
+                  pagination +=
+                    '<span class="page-numbers current">' + i + "</span>";
+                } else {
+                  pagination +=
+                    '<span class="page-numbers" data-page="' +
+                    i +
+                    '">' +
+                    i +
+                    "</span>";
+                }
+              }
+
+              // Next page
+              if (dateRangePage < totalPages) {
+                pagination +=
+                  '<span class="page-numbers" data-page="' +
+                  (dateRangePage + 1) +
+                  '">Next »</span>';
+              }
+
+              $(".wc-data-cleanup-date-bookings-pagination").html(pagination);
+            }
+
+            // Enable delete button if bookings are selected
+            updateDateSelectionCount();
+          } else {
+            // Show "no bookings" message
+            $(
+              ".wc-data-cleanup-date-bookings-list .wc-data-cleanup-no-bookings"
+            ).show();
+            $(".wc-data-cleanup-date-preview-badge").text("0");
+          }
+        },
+        error: function () {
+          $(
+            ".wc-data-cleanup-date-bookings-list .wc-data-cleanup-loading"
+          ).hide();
+          $(".wc-data-cleanup-date-bookings-list .wc-data-cleanup-no-bookings")
+            .show()
+            .html("<p>Error loading bookings. Please try again.</p>");
+        },
+      });
+    }
+
+    // Update date selection count and enable/disable delete button
+    function updateDateSelectionCount() {
+      $(".date-selection-count").text(selectedDateBookings.length);
+      $(".wc-data-cleanup-delete-selected-date-bookings").prop(
+        "disabled",
+        selectedDateBookings.length === 0
+      );
     }
   });
 })(jQuery);

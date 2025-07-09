@@ -1,12 +1,12 @@
 # Data Cleanup for WooCommerce
 
-Advanced tool for cleaning up WooCommerce data including users, customers, and orders with selective deletion options.
+Advanced tool for cleaning up WooCommerce data including users, customers, orders, and bookings with selective deletion options.
 
 ![Data Cleanup for WooCommerce](/.github/assets/data-cleanup-demo.gif)
 
 ## Description
 
-Data Cleanup for WooCommerce is a powerful admin tool that helps store managers and administrators clean up their WooCommerce data. It provides a user-friendly interface to selectively delete users, customers, and orders based on various criteria.
+Data Cleanup for WooCommerce is a powerful admin tool that helps store managers and administrators clean up their WooCommerce data. It provides a user-friendly interface to selectively delete users, customers, orders, and bookings based on various criteria.
 
 ### Key Features
 
@@ -26,11 +26,19 @@ Data Cleanup for WooCommerce is a powerful admin tool that helps store managers 
   - Batch selection tools for efficient management
 
 - **Order Management**
+
   - Filter orders by status, date range, and more
   - Preview orders before deletion
   - Safely remove test or obsolete orders
   - Multiple status selection with status counts
   - Advanced search functionality for finding specific orders
+
+- **Booking Management** (requires WooCommerce Bookings)
+  - View bookings by status with count summaries
+  - Delete individual or multiple bookings at once
+  - Filter and delete bookings by date range
+  - Option to delete related orders when removing bookings
+  - Interactive preview before deletion for safer operations
 
 ### Perfect For
 
@@ -38,6 +46,7 @@ Data Cleanup for WooCommerce is a powerful admin tool that helps store managers 
 - Removing old or inactive customer accounts
 - Maintaining a streamlined database for better performance
 - Preparing for migrations or system upgrades
+- Managing and cleaning booking data
 
 ## Installation
 
@@ -46,6 +55,7 @@ Data Cleanup for WooCommerce is a powerful admin tool that helps store managers 
 - WordPress 6.0 or higher
 - WooCommerce 7.0 or higher
 - PHP 7.4 or higher
+- WooCommerce Bookings 1.15.0 or higher (for booking management features)
 
 ### Installation
 
@@ -87,6 +97,16 @@ After activation, navigate to WooCommerce → Data Cleanup in your WordPress adm
 4. Select orders to remove
 5. Confirm deletion when prompted
 
+### Booking Cleanup
+
+1. Navigate to the "Bookings" tab
+2. View bookings by status with count summaries
+3. Click "List Bookings" to see bookings for a specific status
+4. Use date range filter to find bookings in a specific time period
+5. Select individual bookings or use "Select All" for bulk operations
+6. Optionally check "Also delete related orders when deleting bookings"
+7. Click "Delete Selected Bookings" to remove them
+
 ## Frequently Asked Questions
 
 ### Is this plugin compatible with HPOS (High-Performance Order Storage)?
@@ -97,11 +117,15 @@ Yes, this plugin is fully compatible with WooCommerce HPOS and works with both t
 
 No, by default deleting users will not delete their orders. Orders will remain in the system but will no longer be associated with a specific user account.
 
+### When deleting bookings, will the associated orders be deleted too?
+
+Only if you check the "Also delete related orders when deleting bookings" option. By default, bookings are deleted without affecting their associated orders.
+
 ### Is there a way to recover deleted data?
 
 No, all deletions are permanent. We strongly recommend backing up your database before performing any deletion operations.
 
-### Can I delete multiple users/orders at once?
+### Can I delete multiple users/orders/bookings at once?
 
 Yes, the plugin supports batch selection and deletion for efficient data management.
 
@@ -130,6 +154,15 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 ```
 
 ## Changelog
+
+### 1.1.0 - 2023-12-15
+
+- Added WooCommerce Bookings integration
+- New booking management tab with status filtering
+- Added date range selection for booking cleanup
+- Added option to delete related orders when deleting bookings
+- Improved UI for preview and selection of bookings
+- Enhanced date picker functionality
 
 ### 1.0.0 - 2023-10-15
 

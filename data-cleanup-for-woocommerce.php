@@ -2,8 +2,8 @@
 /**
  * Plugin Name: Data Cleanup for WooCommerce
  * Plugin URI: https://github.com/shameemreza/data-cleanup-for-woocommerce
- * Description: Advanced tool for cleaning up WooCommerce data including users, customers, and orders with selective deletion options.
- * Version: 1.0.0
+ * Description: Advanced tool for cleaning up WooCommerce data including users, customers, orders, and bookings with selective deletion options.
+ * Version: 1.1.0
  * Author: Shameem Reza
  * Author URI: https://shameem.dev
  * Text Domain: wc-data-cleanup
@@ -32,7 +32,7 @@ add_action( 'before_woocommerce_init', function() {
 } );
 
 // Define plugin constants
-define( 'WC_DATA_CLEANUP_VERSION', '1.0.0' );
+define( 'WC_DATA_CLEANUP_VERSION', '1.1.0' );
 define( 'WC_DATA_CLEANUP_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WC_DATA_CLEANUP_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
@@ -88,6 +88,20 @@ class WC_Data_Cleanup {
 		require_once WC_DATA_CLEANUP_PLUGIN_DIR . 'includes/class-wc-data-cleanup-users.php';
 		require_once WC_DATA_CLEANUP_PLUGIN_DIR . 'includes/class-wc-data-cleanup-customers.php';
 		require_once WC_DATA_CLEANUP_PLUGIN_DIR . 'includes/class-wc-data-cleanup-orders.php';
+		
+		// Always include the bookings class - we'll check for WooCommerce Bookings 
+		// functionality at runtime instead of load time
+		require_once WC_DATA_CLEANUP_PLUGIN_DIR . 'includes/class-wc-data-cleanup-bookings.php';
+	}
+
+	/**
+	 * Check if WooCommerce Bookings is active
+	 *
+	 * @return bool
+	 */
+	private function is_bookings_active() {
+		// Simply check if the post type exists, which is more reliable
+		return post_type_exists( 'wc_booking' );
 	}
 
 	/**
