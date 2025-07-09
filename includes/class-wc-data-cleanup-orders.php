@@ -329,6 +329,17 @@ class WC_Data_Cleanup_Orders {
 		$status_formatted = strpos($status, 'wc-') === 0 ? $status : 'wc-' . $status;
 		$status_clean = str_replace('wc-', '', $status);
 		
+		// Generate a cache key based on status
+		$cache_key = 'wc_data_cleanup_order_count_' . sanitize_key($status);
+		
+		// Try to get from cache first
+		$count = wp_cache_get($cache_key, 'wc_data_cleanup');
+		
+		// If found in cache, return it
+		if (false !== $count) {
+			return $count;
+		}
+		
 		// Use WC_Order_Query for compatibility with both HPOS and traditional storage
 		$args = array(
 			'limit'  => -1, // Get all orders
@@ -340,7 +351,12 @@ class WC_Data_Cleanup_Orders {
 		try {
 			$query = new WC_Order_Query($args);
 			$orders = $query->get_orders();
-			return count($orders);
+			$count = count($orders);
+			
+			// Save in cache for future use (1 hour cache time)
+			wp_cache_set($cache_key, $count, 'wc_data_cleanup', HOUR_IN_SECONDS);
+			
+			return $count;
 		} catch (Exception $e) {
 			// Fall back to direct database queries if the API fails
 		}
@@ -350,7 +366,7 @@ class WC_Data_Cleanup_Orders {
 			class_exists('Automattic\\WooCommerce\\Utilities\\OrderUtil') && 
 			Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled();
 		
-		// Direct database query as fallback
+		// Direct database query as fallback, with caching
 		global $wpdb;
 		
 		if ($is_hpos_enabled) {
@@ -367,8 +383,14 @@ class WC_Data_Cleanup_Orders {
 			));
 		}
 		
-		// Return integer count, fallback to 0 if query failed
-		return absint($count);
+		// Convert to integer
+		$count = absint($count);
+		
+		// Save in cache for future use (1 hour cache time)
+		wp_cache_set($cache_key, $count, 'wc_data_cleanup', HOUR_IN_SECONDS);
+		
+		// Return count, fallback to 0 if query failed
+		return $count;
 	}
 
 	/**
@@ -500,24 +522,124 @@ class WC_Data_Cleanup_Orders {
 						if (count($statuses) === 1) {
 							$clean_status = str_replace('wc-', '', $statuses[0]);
 							
-							$expanded_results = $wpdb->get_col($wpdb->prepare(
-								"SELECT id FROM {$wpdb->prefix}wc_orders 
-								WHERE (
-									billing_email LIKE %s OR
-									billing_first_name LIKE %s OR
-									billing_last_name LIKE %s OR
-									billing_company LIKE %s
-								)
-								AND status = %s
-								LIMIT 100",
-								$search_term, $search_term, $search_term, $search_term, $clean_status
-							));
+							// Create a cache key for this specific query
+							$cache_key = 'wc_data_cleanup_hpos_search_' . md5($search_term . $clean_status);
+							
+							// Try to get results from cache
+							$expanded_results = wp_cache_get($cache_key, 'wc_data_cleanup');
+							
+							// If not in cache, perform the query
+							if (false === $expanded_results) {
+								$expanded_results = $wpdb->get_col($wpdb->prepare(
+									"SELECT id FROM {$wpdb->prefix}wc_orders 
+									WHERE (
+										billing_email LIKE %s OR
+										billing_first_name LIKE %s OR
+										billing_last_name LIKE %s OR
+										billing_company LIKE %s
+									)
+									AND status = %s
+									LIMIT 100",
+									$search_term, $search_term, $search_term, $search_term, $clean_status
+								));
+								
+								// Cache results for 5 minutes
+								wp_cache_set($cache_key, $expanded_results, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
+							}
 						}
 						// For 2 statuses
 						else if (count($statuses) === 2) {
 							$clean_status1 = str_replace('wc-', '', $statuses[0]);
 							$clean_status2 = str_replace('wc-', '', $statuses[1]);
 							
+							// Create a cache key for this specific query
+							$cache_key = 'wc_data_cleanup_hpos_search_' . md5($search_term . $clean_status1 . $clean_status2);
+							
+							// Try to get results from cache
+							$expanded_results = wp_cache_get($cache_key, 'wc_data_cleanup');
+							
+							// If not in cache, perform the query
+							if (false === $expanded_results) {
+								$expanded_results = $wpdb->get_col($wpdb->prepare(
+									"SELECT id FROM {$wpdb->prefix}wc_orders 
+									WHERE (
+										billing_email LIKE %s OR
+										billing_first_name LIKE %s OR
+										billing_last_name LIKE %s OR
+										billing_company LIKE %s
+									)
+									AND (status = %s OR status = %s)
+									LIMIT 100",
+									$search_term, $search_term, $search_term, $search_term,
+									$clean_status1, $clean_status2
+								));
+								
+								// Cache results for 5 minutes
+								wp_cache_set($cache_key, $expanded_results, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
+							}
+						}
+						// For 3 or more statuses, build a fully prepared query
+						else {
+							// For multiple statuses in HPOS, use individual queries for each status
+							// Create a status string for cache key
+							$status_string = implode(',', $statuses);
+							$cache_key = 'wc_data_cleanup_hpos_multi_' . md5($search_term . $status_string);
+							
+							// Try to get from cache first
+							$expanded_results = wp_cache_get($cache_key, 'wc_data_cleanup');
+							
+							if (false === $expanded_results) {
+								$result_ids = array();
+								
+								// Loop through each status and run a separate query
+								foreach ($statuses as $s) {
+									$clean_status = str_replace('wc-', '', $s);
+									
+									// Create a sub-cache key for this specific status
+									$status_cache_key = 'wc_data_cleanup_hpos_status_' . md5($search_term . $clean_status);
+									$status_results = wp_cache_get($status_cache_key, 'wc_data_cleanup');
+									
+									if (false === $status_results) {
+										// Use a separate query for each status
+										$status_results = $wpdb->get_col($wpdb->prepare(
+											"SELECT id FROM {$wpdb->prefix}wc_orders 
+											WHERE (
+												billing_email LIKE %s OR 
+												billing_first_name LIKE %s OR 
+												billing_last_name LIKE %s OR 
+												billing_company LIKE %s
+											) 
+											AND status = %s
+											LIMIT 100",
+											$search_term, $search_term, $search_term, $search_term, $clean_status
+										));
+										
+										// Cache individual status results
+										wp_cache_set($status_cache_key, $status_results, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
+									}
+									
+									// Merge results
+									if (!empty($status_results)) {
+										$result_ids = array_merge($result_ids, $status_results);
+									}
+								}
+								
+								// Remove duplicates
+								$expanded_results = array_unique($result_ids);
+								
+								// Cache the combined results
+								wp_cache_set($cache_key, $expanded_results, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
+							}
+						}
+					} else {
+						// Without status filter - simpler query
+						// Create cache key for this search
+						$cache_key = 'wc_data_cleanup_hpos_no_status_' . md5($search_term);
+						
+						// Try to get from cache first
+						$expanded_results = wp_cache_get($cache_key, 'wc_data_cleanup');
+						
+						if (false === $expanded_results) {
 							$expanded_results = $wpdb->get_col($wpdb->prepare(
 								"SELECT id FROM {$wpdb->prefix}wc_orders 
 								WHERE (
@@ -526,57 +648,13 @@ class WC_Data_Cleanup_Orders {
 									billing_last_name LIKE %s OR
 									billing_company LIKE %s
 								)
-								AND (status = %s OR status = %s)
 								LIMIT 100",
-								$search_term, $search_term, $search_term, $search_term,
-								$clean_status1, $clean_status2
+								$search_term, $search_term, $search_term, $search_term
 							));
-						}
-						// For 3 or more statuses, build a fully prepared query
-						else {
-							// For multiple statuses in HPOS, use individual queries for each status
-							$result_ids = array();
 							
-							// Loop through each status and run a separate query
-							foreach ($statuses as $s) {
-								$clean_status = str_replace('wc-', '', $s);
-								
-								// Use a separate query for each status
-								$status_results = $wpdb->get_col($wpdb->prepare(
-									"SELECT id FROM {$wpdb->prefix}wc_orders 
-									WHERE (
-										billing_email LIKE %s OR 
-										billing_first_name LIKE %s OR 
-										billing_last_name LIKE %s OR 
-										billing_company LIKE %s
-									) 
-									AND status = %s
-									LIMIT 100",
-									$search_term, $search_term, $search_term, $search_term, $clean_status
-								));
-								
-								// Merge results
-								if (!empty($status_results)) {
-									$result_ids = array_merge($result_ids, $status_results);
-								}
-							}
-							
-							// Remove duplicates
-							$expanded_results = array_unique($result_ids);
+							// Cache results for 5 minutes
+							wp_cache_set($cache_key, $expanded_results, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
 						}
-					} else {
-						// Without status filter - simpler query
-						$expanded_results = $wpdb->get_col($wpdb->prepare(
-							"SELECT id FROM {$wpdb->prefix}wc_orders 
-							WHERE (
-								billing_email LIKE %s OR
-								billing_first_name LIKE %s OR
-								billing_last_name LIKE %s OR
-								billing_company LIKE %s
-							)
-							LIMIT 100",
-							$search_term, $search_term, $search_term, $search_term
-						));
 					}
 				} else {
 					// Traditional post meta search - with properly prepared queries
@@ -612,33 +690,53 @@ class WC_Data_Cleanup_Orders {
 							$query_values[] = $formatted_status;
 							
 							// For single status, we'll use a completely different approach to avoid SQL warnings
-							// Use individual queries for each meta condition and combine results
-							$result_ids = array();
+							// Create a cache key for this query
+							$cache_key = 'wc_data_cleanup_meta_single_' . md5($search_term . $formatted_status);
 							
-							// Loop through each meta key and do a separate query
-							foreach ($meta_keys as $key) {
-								$query_results = $wpdb->get_col($wpdb->prepare(
-									"SELECT DISTINCT p.ID 
-									FROM {$wpdb->posts} p
-									INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
-									WHERE p.post_type = 'shop_order'
-									AND p.post_status = %s
-									AND pm.meta_key = %s
-									AND pm.meta_value LIKE %s
-									LIMIT 100",
-									$formatted_status,
-									$key,
-									$search_term
-								));
+							// Try to get from cache first
+							$expanded_results = wp_cache_get($cache_key, 'wc_data_cleanup');
+							
+							if (false === $expanded_results) {
+								// Use individual queries for each meta condition and combine results
+								$result_ids = array();
 								
-								// Merge results
-								if (!empty($query_results)) {
-									$result_ids = array_merge($result_ids, $query_results);
+								// Loop through each meta key and do a separate query
+								foreach ($meta_keys as $key) {
+									// Create a subcache key for this specific meta key
+									$meta_cache_key = 'wc_data_cleanup_meta_key_' . md5($search_term . $formatted_status . $key);
+									$query_results = wp_cache_get($meta_cache_key, 'wc_data_cleanup');
+									
+									if (false === $query_results) {
+										$query_results = $wpdb->get_col($wpdb->prepare(
+											"SELECT DISTINCT p.ID 
+											FROM {$wpdb->posts} p
+											INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+											WHERE p.post_type = 'shop_order'
+											AND p.post_status = %s
+											AND pm.meta_key = %s
+											AND pm.meta_value LIKE %s
+											LIMIT 100",
+											$formatted_status,
+											$key,
+											$search_term
+										));
+										
+										// Cache individual meta key results
+										wp_cache_set($meta_cache_key, $query_results, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
+									}
+									
+									// Merge results
+									if (!empty($query_results)) {
+										$result_ids = array_merge($result_ids, $query_results);
+									}
 								}
+								
+								// Remove duplicates
+								$expanded_results = array_unique($result_ids);
+								
+								// Cache the combined results
+								wp_cache_set($cache_key, $expanded_results, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
 							}
-							
-							// Remove duplicates
-							$expanded_results = array_unique($result_ids);
 						}
 						// Two statuses
 						else if (count($statuses) === 2) {
@@ -651,52 +749,81 @@ class WC_Data_Cleanup_Orders {
 							$query_values[] = $formatted_status2;
 							
 							// For two statuses, use the same approach with individual queries
-							$result_ids = array();
+							// Create a cache key for this double status query
+							$cache_key = 'wc_data_cleanup_meta_two_status_' . md5($search_term . $formatted_status1 . $formatted_status2);
 							
-							// Loop through each combination of meta key and status
-							foreach ($meta_keys as $key) {
-								// Query for first status
-								$results1 = $wpdb->get_col($wpdb->prepare(
-									"SELECT DISTINCT p.ID 
-									FROM {$wpdb->posts} p
-									INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
-									WHERE p.post_type = 'shop_order'
-									AND p.post_status = %s
-									AND pm.meta_key = %s
-									AND pm.meta_value LIKE %s
-									LIMIT 100",
-									$formatted_status1,
-									$key,
-									$search_term
-								));
+							// Try to get from cache first
+							$expanded_results = wp_cache_get($cache_key, 'wc_data_cleanup');
+							
+							if (false === $expanded_results) {
+								$result_ids = array();
 								
-								// Query for second status
-								$results2 = $wpdb->get_col($wpdb->prepare(
-									"SELECT DISTINCT p.ID 
-									FROM {$wpdb->posts} p
-									INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
-									WHERE p.post_type = 'shop_order'
-									AND p.post_status = %s
-									AND pm.meta_key = %s
-									AND pm.meta_value LIKE %s
-									LIMIT 100",
-									$formatted_status2,
-									$key,
-									$search_term
-								));
-								
-								// Merge results
-								if (!empty($results1)) {
-									$result_ids = array_merge($result_ids, $results1);
+								// Loop through each combination of meta key and status
+								foreach ($meta_keys as $key) {
+									// Cache key for first status query
+									$status1_key = 'wc_data_cleanup_meta_key_status_' . md5($search_term . $formatted_status1 . $key);
+									$results1 = wp_cache_get($status1_key, 'wc_data_cleanup');
+									
+									if (false === $results1) {
+										// Query for first status
+										$results1 = $wpdb->get_col($wpdb->prepare(
+											"SELECT DISTINCT p.ID 
+											FROM {$wpdb->posts} p
+											INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+											WHERE p.post_type = 'shop_order'
+											AND p.post_status = %s
+											AND pm.meta_key = %s
+											AND pm.meta_value LIKE %s
+											LIMIT 100",
+											$formatted_status1,
+											$key,
+											$search_term
+										));
+										
+										// Cache individual query results
+										wp_cache_set($status1_key, $results1, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
+									}
+									
+									// Cache key for second status query
+									$status2_key = 'wc_data_cleanup_meta_key_status_' . md5($search_term . $formatted_status2 . $key);
+									$results2 = wp_cache_get($status2_key, 'wc_data_cleanup');
+									
+									if (false === $results2) {
+										// Query for second status
+										$results2 = $wpdb->get_col($wpdb->prepare(
+											"SELECT DISTINCT p.ID 
+											FROM {$wpdb->posts} p
+											INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+											WHERE p.post_type = 'shop_order'
+											AND p.post_status = %s
+											AND pm.meta_key = %s
+											AND pm.meta_value LIKE %s
+											LIMIT 100",
+											$formatted_status2,
+											$key,
+											$search_term
+										));
+										
+										// Cache individual query results
+										wp_cache_set($status2_key, $results2, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
+									}
+									
+									// Merge results
+									if (!empty($results1)) {
+										$result_ids = array_merge($result_ids, $results1);
+									}
+									
+									if (!empty($results2)) {
+										$result_ids = array_merge($result_ids, $results2);
+									}
 								}
 								
-								if (!empty($results2)) {
-									$result_ids = array_merge($result_ids, $results2);
-								}
+								// Remove duplicates
+								$expanded_results = array_unique($result_ids);
+								
+								// Cache the combined results
+								wp_cache_set($cache_key, $expanded_results, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
 							}
-							
-							// Remove duplicates
-							$expanded_results = array_unique($result_ids);
 						}
 						// Multiple statuses
 						else {
@@ -720,67 +847,108 @@ class WC_Data_Cleanup_Orders {
 							$meta_subquery = "SELECT DISTINCT post_id FROM {$wpdb->postmeta} WHERE " . 
 								implode(' OR ', $prepared_meta_conditions);
 							
-							// For multiple statuses, use the same individual query approach
+							// For multiple statuses, use the same individual query approach with caching
+							// Create a status string for cache key
+							$status_string = implode(',', $statuses);
+							$cache_key = 'wc_data_cleanup_meta_multi_' . md5($search_term . $status_string);
+							
+							// Try to get from cache first
+							$expanded_results = wp_cache_get($cache_key, 'wc_data_cleanup');
+							
+							if (false === $expanded_results) {
+								$result_ids = array();
+								
+								// Loop through each combination of meta key and status
+								foreach ($meta_keys as $key) {
+									foreach ($statuses as $s) {
+										$formatted_status = 'wc-' . str_replace('wc-', '', $s);
+										
+										// Create a cache key for this specific combination
+										$combo_key = 'wc_data_cleanup_meta_key_status_' . md5($search_term . $formatted_status . $key);
+										$status_results = wp_cache_get($combo_key, 'wc_data_cleanup');
+										
+										if (false === $status_results) {
+											// Query for each status
+											$status_results = $wpdb->get_col($wpdb->prepare(
+												"SELECT DISTINCT p.ID 
+												FROM {$wpdb->posts} p
+												INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+												WHERE p.post_type = 'shop_order'
+												AND p.post_status = %s
+												AND pm.meta_key = %s
+												AND pm.meta_value LIKE %s
+												LIMIT 100",
+												$formatted_status,
+												$key,
+												$search_term
+											));
+											
+											// Cache individual combination results
+											wp_cache_set($combo_key, $status_results, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
+										}
+										
+										// Merge results
+										if (!empty($status_results)) {
+											$result_ids = array_merge($result_ids, $status_results);
+										}
+									}
+								}
+								
+								// Remove duplicates
+								$expanded_results = array_unique($result_ids);
+								
+								// Cache the combined results
+								wp_cache_set($cache_key, $expanded_results, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
+							}
+						}
+					}
+					// No status filter - simpler query
+					else {
+						// For no status filter, use individual queries for each meta key with caching
+						// Create a cache key for this search without status
+						$cache_key = 'wc_data_cleanup_meta_no_status_' . md5($search_term);
+						
+						// Try to get from cache first
+						$expanded_results = wp_cache_get($cache_key, 'wc_data_cleanup');
+						
+						if (false === $expanded_results) {
 							$result_ids = array();
 							
-							// Loop through each combination of meta key and status
+							// Loop through each meta key separately
 							foreach ($meta_keys as $key) {
-								foreach ($statuses as $s) {
-									$formatted_status = 'wc-' . str_replace('wc-', '', $s);
-									
-									// Query for each status
-									$status_results = $wpdb->get_col($wpdb->prepare(
+								// Create a cache key for this specific meta key
+								$meta_key_cache = 'wc_data_cleanup_meta_key_only_' . md5($search_term . $key);
+								$query_results = wp_cache_get($meta_key_cache, 'wc_data_cleanup');
+								
+								if (false === $query_results) {
+									$query_results = $wpdb->get_col($wpdb->prepare(
 										"SELECT DISTINCT p.ID 
 										FROM {$wpdb->posts} p
 										INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
 										WHERE p.post_type = 'shop_order'
-										AND p.post_status = %s
 										AND pm.meta_key = %s
 										AND pm.meta_value LIKE %s
 										LIMIT 100",
-										$formatted_status,
 										$key,
 										$search_term
 									));
 									
-									// Merge results
-									if (!empty($status_results)) {
-										$result_ids = array_merge($result_ids, $status_results);
-									}
+									// Cache individual meta key results
+									wp_cache_set($meta_key_cache, $query_results, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
+								}
+								
+								// Merge results
+								if (!empty($query_results)) {
+									$result_ids = array_merge($result_ids, $query_results);
 								}
 							}
 							
 							// Remove duplicates
 							$expanded_results = array_unique($result_ids);
-						}
-					}
-					// No status filter - simpler query
-					else {
-						// For no status filter, use individual queries for each meta key
-						$result_ids = array();
-						
-						// Loop through each meta key separately
-						foreach ($meta_keys as $key) {
-							$query_results = $wpdb->get_col($wpdb->prepare(
-								"SELECT DISTINCT p.ID 
-								FROM {$wpdb->posts} p
-								INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
-								WHERE p.post_type = 'shop_order'
-								AND pm.meta_key = %s
-								AND pm.meta_value LIKE %s
-								LIMIT 100",
-								$key,
-								$search_term
-							));
 							
-							// Merge results
-							if (!empty($query_results)) {
-								$result_ids = array_merge($result_ids, $query_results);
-							}
+							// Cache the combined results
+							wp_cache_set($cache_key, $expanded_results, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
 						}
-						
-						// Remove duplicates
-						$expanded_results = array_unique($result_ids);
 					}
 				}
 				
