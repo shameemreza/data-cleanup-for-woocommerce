@@ -1317,31 +1317,58 @@ class WC_Data_Cleanup_Admin {
 			}
 		}
 		
-		// Get total count for pagination using a properly prepared query
-		$total_count = $wpdb->get_var($wpdb->prepare(
-			"SELECT COUNT(*) 
-			FROM {$wpdb->posts} p
-			LEFT JOIN {$wpdb->postmeta} pm_start ON p.ID = pm_start.post_id AND pm_start.meta_key = '_booking_start'
-			WHERE p.post_type = 'wc_booking'
-			" . (!empty($status) ? "AND p.post_status = %s" : "") . 
-			(!empty($date_from) && !empty($date_to) ? 
-				" AND pm_start.meta_value BETWEEN %s AND %s" : ""),
-			// Add parameters only if they're used in the query
-			...array_filter([
-				!empty($status) ? $status : null,
-				(!empty($date_from) && !empty($date_to)) ? $start_date : null,
-				(!empty($date_from) && !empty($date_to)) ? $end_date : null
-			], function($param) { return $param !== null; })
-		));
+		// Get total count for pagination using properly prepared queries without conditionals in SQL
+		if (!empty($status) && !empty($date_from) && !empty($date_to)) {
+			// Both status and date filters
+			$total_count = $wpdb->get_var($wpdb->prepare(
+				"SELECT COUNT(*) 
+				FROM {$wpdb->posts} p
+				LEFT JOIN {$wpdb->postmeta} pm_start ON p.ID = pm_start.post_id AND pm_start.meta_key = '_booking_start'
+				WHERE p.post_type = 'wc_booking'
+				AND p.post_status = %s
+				AND pm_start.meta_value BETWEEN %s AND %s",
+				$status,
+				$start_date,
+				$end_date
+			));
+		} elseif (!empty($status)) {
+			// Only status filter
+			$total_count = $wpdb->get_var($wpdb->prepare(
+				"SELECT COUNT(*) 
+				FROM {$wpdb->posts} p
+				LEFT JOIN {$wpdb->postmeta} pm_start ON p.ID = pm_start.post_id AND pm_start.meta_key = '_booking_start'
+				WHERE p.post_type = 'wc_booking'
+				AND p.post_status = %s",
+				$status
+			));
+		} elseif (!empty($date_from) && !empty($date_to)) {
+			// Only date filter
+			$total_count = $wpdb->get_var($wpdb->prepare(
+				"SELECT COUNT(*) 
+				FROM {$wpdb->posts} p
+				LEFT JOIN {$wpdb->postmeta} pm_start ON p.ID = pm_start.post_id AND pm_start.meta_key = '_booking_start'
+				WHERE p.post_type = 'wc_booking'
+				AND pm_start.meta_value BETWEEN %s AND %s",
+				$start_date,
+				$end_date
+			));
+		} else {
+			// No filters
+			$total_count = $wpdb->get_var(
+				"SELECT COUNT(*) 
+				FROM {$wpdb->posts} p
+				LEFT JOIN {$wpdb->postmeta} pm_start ON p.ID = pm_start.post_id AND pm_start.meta_key = '_booking_start'
+				WHERE p.post_type = 'wc_booking'"
+			);
+		}
 		
 		if ( defined('WP_DEBUG') && WP_DEBUG ) {
 			error_log('Count Query: ' . $count_query);
 			error_log('Total Count: ' . $total_count);
 		}
 		
-		// Execute the query with proper preparation
-		$bookings = $wpdb->get_results($wpdb->prepare(
-			"SELECT p.ID, p.post_date, p.post_status, 
+		// Define the base query
+		$base_query = "SELECT p.ID, p.post_date, p.post_status, 
 			COALESCE(pm_order.meta_value, 0) as order_id,
 			COALESCE(pm_customer.meta_value, 0) as customer_id,
 			COALESCE(pm_product.meta_value, 0) as product_id,
@@ -1353,21 +1380,56 @@ class WC_Data_Cleanup_Admin {
 			LEFT JOIN {$wpdb->postmeta} pm_product ON p.ID = pm_product.post_id AND pm_product.meta_key = '_booking_product_id'
 			LEFT JOIN {$wpdb->postmeta} pm_cost ON p.ID = pm_cost.post_id AND pm_cost.meta_key = '_booking_cost'
 			LEFT JOIN {$wpdb->postmeta} pm_start ON p.ID = pm_start.post_id AND pm_start.meta_key = '_booking_start'
-			WHERE p.post_type = 'wc_booking'
-			" . (!empty($status) ? "AND p.post_status = %s" : "") . 
-			(!empty($date_from) && !empty($date_to) ? 
-				" AND pm_start.meta_value BETWEEN %s AND %s" : "") . "
-			ORDER BY p.post_date DESC
-			LIMIT %d OFFSET %d",
-			// Add all parameters in order
-			...array_filter([
-				!empty($status) ? $status : null,
-				(!empty($date_from) && !empty($date_to)) ? $start_date : null,
-				(!empty($date_from) && !empty($date_to)) ? $end_date : null,
+			WHERE p.post_type = 'wc_booking'";
+
+		// Execute query based on the filter conditions
+		if (!empty($status) && !empty($date_from) && !empty($date_to)) {
+			// Both status and date filters
+			$bookings = $wpdb->get_results($wpdb->prepare(
+				$base_query . " 
+				AND p.post_status = %s 
+				AND pm_start.meta_value BETWEEN %s AND %s
+				ORDER BY p.post_date DESC
+				LIMIT %d OFFSET %d",
+				$status,
+				$start_date,
+				$end_date,
 				$limit,
 				$offset
-			], function($param) { return $param !== null; })
-		));
+			));
+		} elseif (!empty($status)) {
+			// Only status filter
+			$bookings = $wpdb->get_results($wpdb->prepare(
+				$base_query . " 
+				AND p.post_status = %s
+				ORDER BY p.post_date DESC
+				LIMIT %d OFFSET %d",
+				$status,
+				$limit,
+				$offset
+			));
+		} elseif (!empty($date_from) && !empty($date_to)) {
+			// Only date filter
+			$bookings = $wpdb->get_results($wpdb->prepare(
+				$base_query . " 
+				AND pm_start.meta_value BETWEEN %s AND %s
+				ORDER BY p.post_date DESC
+				LIMIT %d OFFSET %d",
+				$start_date,
+				$end_date,
+				$limit,
+				$offset
+			));
+		} else {
+			// No filters
+			$bookings = $wpdb->get_results($wpdb->prepare(
+				$base_query . " 
+				ORDER BY p.post_date DESC
+				LIMIT %d OFFSET %d",
+				$limit,
+				$offset
+			));
+		}
 		
 		if ( defined('WP_DEBUG') && WP_DEBUG ) {
 			error_log('Query executed with prepared statement');
