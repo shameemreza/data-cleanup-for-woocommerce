@@ -78,12 +78,25 @@ class WC_Data_Cleanup_Admin {
 			}
 		}
 		
-		// Add order by and limit
-		$query .= " ORDER BY p.post_date DESC";
-		$query .= $wpdb->prepare(" LIMIT %d OFFSET %d", $args['limit'], $args['offset']);
-		
-		// Execute the query
-		$bookings = $wpdb->get_results($query);
+		// Execute the query with proper preparation
+		$bookings = $wpdb->get_results($wpdb->prepare("SELECT p.ID, p.post_date, p.post_status, 
+			COALESCE(pm_order.meta_value, 0) as order_id,
+			COALESCE(pm_customer.meta_value, 0) as customer_id,
+			COALESCE(pm_product.meta_value, 0) as product_id,
+			COALESCE(pm_cost.meta_value, 0) as cost,
+			COALESCE(pm_start.meta_value, '') as start_date
+			FROM {$wpdb->posts} p
+			LEFT JOIN {$wpdb->postmeta} pm_order ON p.ID = pm_order.post_id AND pm_order.meta_key = '_booking_order_id'
+			LEFT JOIN {$wpdb->postmeta} pm_customer ON p.ID = pm_customer.post_id AND pm_customer.meta_key = '_booking_customer_id'
+			LEFT JOIN {$wpdb->postmeta} pm_product ON p.ID = pm_product.post_id AND pm_product.meta_key = '_booking_product_id'
+			LEFT JOIN {$wpdb->postmeta} pm_cost ON p.ID = pm_cost.post_id AND pm_cost.meta_key = '_booking_cost'
+			LEFT JOIN {$wpdb->postmeta} pm_start ON p.ID = pm_start.post_id AND pm_start.meta_key = '_booking_start'
+			WHERE p.post_type = 'wc_booking'
+			ORDER BY p.post_date DESC
+			LIMIT %d OFFSET %d", 
+			$args['limit'], 
+			$args['offset']
+		));
 		
 		// Process the results
 		$formatted_bookings = array();
@@ -1304,25 +1317,61 @@ class WC_Data_Cleanup_Admin {
 			}
 		}
 		
-		// Get total count for pagination
-		$count_query = str_replace("SELECT p.ID, p.post_date, p.post_status", "SELECT COUNT(*)", $query);
-		$total_count = $wpdb->get_var($count_query);
+		// Get total count for pagination using a properly prepared query
+		$total_count = $wpdb->get_var($wpdb->prepare(
+			"SELECT COUNT(*) 
+			FROM {$wpdb->posts} p
+			LEFT JOIN {$wpdb->postmeta} pm_start ON p.ID = pm_start.post_id AND pm_start.meta_key = '_booking_start'
+			WHERE p.post_type = 'wc_booking'
+			" . (!empty($status) ? "AND p.post_status = %s" : "") . 
+			(!empty($date_from) && !empty($date_to) ? 
+				" AND pm_start.meta_value BETWEEN %s AND %s" : ""),
+			// Add parameters only if they're used in the query
+			...array_filter([
+				!empty($status) ? $status : null,
+				(!empty($date_from) && !empty($date_to)) ? $start_date : null,
+				(!empty($date_from) && !empty($date_to)) ? $end_date : null
+			], function($param) { return $param !== null; })
+		));
 		
 		if ( defined('WP_DEBUG') && WP_DEBUG ) {
 			error_log('Count Query: ' . $count_query);
 			error_log('Total Count: ' . $total_count);
 		}
 		
-		// Add order by and limit
-		$query .= " ORDER BY p.post_date DESC";
-		$query .= $wpdb->prepare(" LIMIT %d OFFSET %d", $limit, $offset);
+		// Execute the query with proper preparation
+		$bookings = $wpdb->get_results($wpdb->prepare(
+			"SELECT p.ID, p.post_date, p.post_status, 
+			COALESCE(pm_order.meta_value, 0) as order_id,
+			COALESCE(pm_customer.meta_value, 0) as customer_id,
+			COALESCE(pm_product.meta_value, 0) as product_id,
+			COALESCE(pm_cost.meta_value, 0) as cost,
+			COALESCE(pm_start.meta_value, '') as start_date
+			FROM {$wpdb->posts} p
+			LEFT JOIN {$wpdb->postmeta} pm_order ON p.ID = pm_order.post_id AND pm_order.meta_key = '_booking_order_id'
+			LEFT JOIN {$wpdb->postmeta} pm_customer ON p.ID = pm_customer.post_id AND pm_customer.meta_key = '_booking_customer_id'
+			LEFT JOIN {$wpdb->postmeta} pm_product ON p.ID = pm_product.post_id AND pm_product.meta_key = '_booking_product_id'
+			LEFT JOIN {$wpdb->postmeta} pm_cost ON p.ID = pm_cost.post_id AND pm_cost.meta_key = '_booking_cost'
+			LEFT JOIN {$wpdb->postmeta} pm_start ON p.ID = pm_start.post_id AND pm_start.meta_key = '_booking_start'
+			WHERE p.post_type = 'wc_booking'
+			" . (!empty($status) ? "AND p.post_status = %s" : "") . 
+			(!empty($date_from) && !empty($date_to) ? 
+				" AND pm_start.meta_value BETWEEN %s AND %s" : "") . "
+			ORDER BY p.post_date DESC
+			LIMIT %d OFFSET %d",
+			// Add all parameters in order
+			...array_filter([
+				!empty($status) ? $status : null,
+				(!empty($date_from) && !empty($date_to)) ? $start_date : null,
+				(!empty($date_from) && !empty($date_to)) ? $end_date : null,
+				$limit,
+				$offset
+			], function($param) { return $param !== null; })
+		));
 		
 		if ( defined('WP_DEBUG') && WP_DEBUG ) {
-			error_log('Full Query: ' . $query);
+			error_log('Query executed with prepared statement');
 		}
-		
-		// Execute the query
-		$bookings = $wpdb->get_results($query);
 		
 		if ( defined('WP_DEBUG') && WP_DEBUG ) {
 			error_log('Bookings found: ' . count($bookings));
