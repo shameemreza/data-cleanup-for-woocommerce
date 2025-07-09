@@ -162,8 +162,8 @@ class WC_Data_Cleanup_Bookings {
 		global $wpdb;
 		
 		// Format dates for database query
-		$start_date = date( 'YmdHis', $start_timestamp );
-		$end_date = date( 'YmdHis', $end_timestamp );
+		$start_date = gmdate( 'YmdHis', $start_timestamp );
+		$end_date = gmdate( 'YmdHis', $end_timestamp );
 		
 		// Query for bookings with start date in the range
 		$query = "
@@ -306,8 +306,8 @@ class WC_Data_Cleanup_Bookings {
 			$end_timestamp = strtotime( $date_to . ' 23:59:59' );
 			
 			if ( $start_timestamp && $end_timestamp ) {
-				$start_date = date( 'YmdHis', $start_timestamp );
-				$end_date = date( 'YmdHis', $end_timestamp );
+				$start_date = gmdate( 'YmdHis', $start_timestamp );
+				$end_date = gmdate( 'YmdHis', $end_timestamp );
 				
 				if ( ! isset( $args['meta_query'] ) ) {
 					$args['meta_query'] = array();
