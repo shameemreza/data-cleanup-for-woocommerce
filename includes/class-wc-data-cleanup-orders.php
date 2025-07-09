@@ -370,17 +370,25 @@ class WC_Data_Cleanup_Orders {
 		global $wpdb;
 		
 		if ($is_hpos_enabled) {
-			// HPOS direct query
+			// HPOS direct query - WPCS: unprepared SQL OK - we're using $wpdb->prepare
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
 			$count = $wpdb->get_var($wpdb->prepare(
 				"SELECT COUNT(*) FROM {$wpdb->prefix}wc_orders WHERE status = %s",
 				$status_clean
 			));
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.NoCaching
 		} else {
-			// Traditional storage direct query
+			// Traditional storage direct query - WPCS: unprepared SQL OK - we're using $wpdb->prepare
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
 			$count = $wpdb->get_var($wpdb->prepare(
 				"SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'shop_order' AND post_status = %s",
 				$status_formatted
 			));
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.NoCaching
 		}
 		
 		// Convert to integer
@@ -479,27 +487,203 @@ class WC_Data_Cleanup_Orders {
 			// First try to match any order number containing the search term
 			$numeric_search = preg_replace('/[^0-9]/', '', $search);
 			if (!empty($numeric_search)) {
-				$args = array(
-					'limit' => $per_page,
-					'return' => 'ids',
-				);
+				// Use a more efficient approach instead of meta_query
+				// Create a cache key for numeric search
+				$cache_key = 'wc_data_cleanup_numeric_search_' . md5($numeric_search . $status);
+				$cached_results = wp_cache_get($cache_key, 'wc_data_cleanup');
 				
-				// Add status filter if provided
-				if (!empty($status)) {
-					$args['status'] = explode(',', $status);
+				if (false === $cached_results) {
+					$this->log_debug('Cache miss for numeric search, performing direct query');
+					$matched_order_ids = array();
+					
+					// Get all potential order IDs that might match numeric search
+					global $wpdb;
+					
+					// Check if HPOS is enabled
+					$is_hpos_enabled = function_exists('wc_get_container') && 
+						class_exists('Automattic\\WooCommerce\\Utilities\\OrderUtil') && 
+						Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled();
+					
+					if ($is_hpos_enabled) {
+						// HPOS: Get orders that might match the numeric pattern
+						// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+						// Direct query is more efficient than meta_query here
+						if (!empty($status)) {
+							$statuses = explode(',', $status);
+							
+							// For common case - single status
+							if (count($statuses) === 1) {
+								$clean_status = str_replace('wc-', '', $statuses[0]);
+								$matched_order_ids = $wpdb->get_col($wpdb->prepare(
+									"SELECT id FROM {$wpdb->prefix}wc_orders 
+									WHERE id LIKE %s AND status = %s
+									LIMIT 100",
+									'%' . $wpdb->esc_like($numeric_search) . '%',
+									$clean_status
+								));
+							} else {
+								// For multiple statuses, build properly prepared query
+								// Create a cache key for this specific combination
+								$status_string = implode(',', $statuses);
+								$status_cache_key = 'wc_data_cleanup_hpos_status_in_' . md5($numeric_search . $status_string);
+								$matched_order_ids = wp_cache_get($status_cache_key, 'wc_data_cleanup');
+								
+								if (false === $matched_order_ids) {
+									// Instead of using a single query with IN clause, use separate queries for each status
+									// This avoids the SQL interpolation warning
+									$result_ids = array();
+									
+									// Process each status separately
+									foreach ($statuses as $s) {
+										$clean_status = str_replace('wc-', '', $s);
+										
+										// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+										$status_results = $wpdb->get_col($wpdb->prepare(
+											"SELECT id FROM {$wpdb->prefix}wc_orders 
+											WHERE id LIKE %s AND status = %s
+											LIMIT 100",
+											'%' . $wpdb->esc_like($numeric_search) . '%',
+											$clean_status
+										));
+										// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
+										
+										// Add these results to the combined results
+										if (!empty($status_results)) {
+											$result_ids = array_merge($result_ids, $status_results);
+										}
+									}
+									
+									// Remove duplicates and ensure all IDs are integers
+									$matched_order_ids = array_unique(array_map('absint', $result_ids));
+									
+									// Cache the results
+									wp_cache_set($status_cache_key, $matched_order_ids, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
+								}
+							}
+						} else {
+							// No status filter
+							// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+							$matched_order_ids = $wpdb->get_col($wpdb->prepare(
+								"SELECT id FROM {$wpdb->prefix}wc_orders 
+								WHERE id LIKE %s
+								LIMIT 100",
+								'%' . $wpdb->esc_like($numeric_search) . '%'
+							));
+							// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
+						}
+						// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
+					} else {
+						// Traditional posts: Get orders that might match the numeric pattern
+						// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+						// Direct query is more efficient than meta_query here
+						if (!empty($status)) {
+							$statuses = explode(',', $status);
+							
+							// Convert to full status strings
+							$formatted_statuses = array_map(function($s) {
+								return 'wc-' . str_replace('wc-', '', $s);
+							}, $statuses);
+							
+							// For common case - single status
+							if (count($formatted_statuses) === 1) {
+								$matched_order_ids = $wpdb->get_col($wpdb->prepare(
+									"SELECT ID FROM {$wpdb->posts} 
+									WHERE ID LIKE %s AND post_type = 'shop_order' AND post_status = %s
+									LIMIT 100",
+									'%' . $wpdb->esc_like($numeric_search) . '%',
+									$formatted_statuses[0]
+								));
+							} else {
+								// For multiple statuses, build properly prepared query
+								// Create a cache key for this specific combination
+								$status_string = implode(',', $formatted_statuses);
+								$status_cache_key = 'wc_data_cleanup_posts_status_in_' . md5($numeric_search . $status_string);
+								$matched_order_ids = wp_cache_get($status_cache_key, 'wc_data_cleanup');
+								
+								if (false === $matched_order_ids) {
+									// Instead of using a single query with IN clause, use separate queries for each status
+									// This avoids the SQL interpolation warning
+									$result_ids = array();
+									
+									// Process each status separately
+									foreach ($formatted_statuses as $formatted_status) {
+										// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+										$status_results = $wpdb->get_col($wpdb->prepare(
+											"SELECT ID FROM {$wpdb->posts} 
+											WHERE ID LIKE %s AND post_type = 'shop_order' AND post_status = %s
+											LIMIT 100",
+											'%' . $wpdb->esc_like($numeric_search) . '%',
+											$formatted_status
+										));
+										// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
+										
+										// Add these results to the combined results
+										if (!empty($status_results)) {
+											$result_ids = array_merge($result_ids, $status_results);
+										}
+									}
+									
+									// Remove duplicates and ensure all IDs are integers
+									$matched_order_ids = array_unique(array_map('absint', $result_ids));
+									
+									// Cache the results
+									wp_cache_set($status_cache_key, $matched_order_ids, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
+								}
+							}
+						} else {
+							// No status filter
+							// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+							$matched_order_ids = $wpdb->get_col($wpdb->prepare(
+								"SELECT ID FROM {$wpdb->posts} 
+								WHERE ID LIKE %s AND post_type = 'shop_order'
+								LIMIT 100",
+								'%' . $wpdb->esc_like($numeric_search) . '%'
+							));
+							// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
+						}
+						// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
+					}
+					
+					// Also check order numbers in meta
+					if ($is_hpos_enabled) {
+						// HPOS doesn't store _order_number in the main table, so we need to check the meta table
+						// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+						$meta_order_ids = $wpdb->get_col($wpdb->prepare(
+							"SELECT order_id FROM {$wpdb->prefix}wc_orders_meta 
+							WHERE meta_key = '_order_number' AND meta_value LIKE %s
+							LIMIT 100",
+							'%' . $wpdb->esc_like($numeric_search) . '%'
+						));
+						// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
+						
+						// Merge with direct ID matches
+						$matched_order_ids = array_merge($matched_order_ids, $meta_order_ids);
+					} else {
+						// Traditional posts: Check order numbers in postmeta
+						// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+						$meta_order_ids = $wpdb->get_col($wpdb->prepare(
+							"SELECT post_id FROM {$wpdb->postmeta} 
+							WHERE meta_key = '_order_number' AND meta_value LIKE %s
+							LIMIT 100",
+							'%' . $wpdb->esc_like($numeric_search) . '%'
+						));
+						// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
+						
+						// Merge with direct ID matches
+						$matched_order_ids = array_merge($matched_order_ids, $meta_order_ids);
+					}
+					
+					// Remove duplicates
+					$matched_order_ids = array_unique(array_map('absint', $matched_order_ids));
+					
+					// Cache the results
+					wp_cache_set($cache_key, $matched_order_ids, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
+					$cached_results = $matched_order_ids;
 				}
 				
-				$args['meta_query'] = array(
-					array(
-						'key' => '_order_number',
-						'value' => $numeric_search,
-						'compare' => 'LIKE',
-					),
-				);
-				
-				$order_by_number = wc_get_orders($args);
-				$order_ids = array_merge($order_ids, $order_by_number);
-				$this->log_debug('Found ' . count($order_by_number) . ' orders by numeric search');
+				// Merge with existing results
+				$order_ids = array_merge($order_ids, $cached_results);
+				$this->log_debug('Found ' . count($cached_results) . ' orders by numeric search');
 			}
 			
 			// If still empty and search term exists, try customer search
@@ -530,6 +714,9 @@ class WC_Data_Cleanup_Orders {
 							
 							// If not in cache, perform the query
 							if (false === $expanded_results) {
+								// Direct DB query is necessary here for custom search that WC API doesn't support
+								// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+								// We're using caching so this is fine
 								$expanded_results = $wpdb->get_col($wpdb->prepare(
 									"SELECT id FROM {$wpdb->prefix}wc_orders 
 									WHERE (
@@ -542,6 +729,7 @@ class WC_Data_Cleanup_Orders {
 									LIMIT 100",
 									$search_term, $search_term, $search_term, $search_term, $clean_status
 								));
+								// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
 								
 								// Cache results for 5 minutes
 								wp_cache_set($cache_key, $expanded_results, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
@@ -560,6 +748,9 @@ class WC_Data_Cleanup_Orders {
 							
 							// If not in cache, perform the query
 							if (false === $expanded_results) {
+								// Direct DB query is necessary here for custom search with multiple statuses
+								// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+								// We're using caching so this is fine
 								$expanded_results = $wpdb->get_col($wpdb->prepare(
 									"SELECT id FROM {$wpdb->prefix}wc_orders 
 									WHERE (
@@ -573,6 +764,7 @@ class WC_Data_Cleanup_Orders {
 									$search_term, $search_term, $search_term, $search_term,
 									$clean_status1, $clean_status2
 								));
+								// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
 								
 								// Cache results for 5 minutes
 								wp_cache_set($cache_key, $expanded_results, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
@@ -601,6 +793,8 @@ class WC_Data_Cleanup_Orders {
 									
 									if (false === $status_results) {
 										// Use a separate query for each status
+										// Direct DB query needed for multi-status search that WC API doesn't handle well
+										// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
 										$status_results = $wpdb->get_col($wpdb->prepare(
 											"SELECT id FROM {$wpdb->prefix}wc_orders 
 											WHERE (
@@ -613,6 +807,7 @@ class WC_Data_Cleanup_Orders {
 											LIMIT 100",
 											$search_term, $search_term, $search_term, $search_term, $clean_status
 										));
+										// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
 										
 										// Cache individual status results
 										wp_cache_set($status_cache_key, $status_results, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
@@ -640,6 +835,8 @@ class WC_Data_Cleanup_Orders {
 						$expanded_results = wp_cache_get($cache_key, 'wc_data_cleanup');
 						
 						if (false === $expanded_results) {
+							// Direct DB query is needed for custom search across multiple fields
+							// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
 							$expanded_results = $wpdb->get_col($wpdb->prepare(
 								"SELECT id FROM {$wpdb->prefix}wc_orders 
 								WHERE (
@@ -651,6 +848,7 @@ class WC_Data_Cleanup_Orders {
 								LIMIT 100",
 								$search_term, $search_term, $search_term, $search_term
 							));
+							// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
 							
 							// Cache results for 5 minutes
 							wp_cache_set($cache_key, $expanded_results, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
@@ -707,6 +905,8 @@ class WC_Data_Cleanup_Orders {
 									$query_results = wp_cache_get($meta_cache_key, 'wc_data_cleanup');
 									
 									if (false === $query_results) {
+										// Direct DB query needed for advanced searching across meta fields
+										// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
 										$query_results = $wpdb->get_col($wpdb->prepare(
 											"SELECT DISTINCT p.ID 
 											FROM {$wpdb->posts} p
@@ -720,6 +920,7 @@ class WC_Data_Cleanup_Orders {
 											$key,
 											$search_term
 										));
+										// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
 										
 										// Cache individual meta key results
 										wp_cache_set($meta_cache_key, $query_results, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
@@ -766,6 +967,8 @@ class WC_Data_Cleanup_Orders {
 									
 									if (false === $results1) {
 										// Query for first status
+										// Direct DB query is necessary for complex multi-status search
+										// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
 										$results1 = $wpdb->get_col($wpdb->prepare(
 											"SELECT DISTINCT p.ID 
 											FROM {$wpdb->posts} p
@@ -779,6 +982,7 @@ class WC_Data_Cleanup_Orders {
 											$key,
 											$search_term
 										));
+										// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
 										
 										// Cache individual query results
 										wp_cache_set($status1_key, $results1, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
@@ -790,6 +994,8 @@ class WC_Data_Cleanup_Orders {
 									
 									if (false === $results2) {
 										// Query for second status
+										// Direct DB query is necessary for complex multi-status search
+										// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
 										$results2 = $wpdb->get_col($wpdb->prepare(
 											"SELECT DISTINCT p.ID 
 											FROM {$wpdb->posts} p
@@ -803,6 +1009,7 @@ class WC_Data_Cleanup_Orders {
 											$key,
 											$search_term
 										));
+										// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
 										
 										// Cache individual query results
 										wp_cache_set($status2_key, $results2, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
@@ -867,8 +1074,12 @@ class WC_Data_Cleanup_Orders {
 										$combo_key = 'wc_data_cleanup_meta_key_status_' . md5($search_term . $formatted_status . $key);
 										$status_results = wp_cache_get($combo_key, 'wc_data_cleanup');
 										
+										// Direct DB query is necessary only for advanced search patterns
+										// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+										
 										if (false === $status_results) {
 											// Query for each status
+											// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
 											$status_results = $wpdb->get_col($wpdb->prepare(
 												"SELECT DISTINCT p.ID 
 												FROM {$wpdb->posts} p
@@ -882,6 +1093,7 @@ class WC_Data_Cleanup_Orders {
 												$key,
 												$search_term
 											));
+											// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
 											
 											// Cache individual combination results
 											wp_cache_set($combo_key, $status_results, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
@@ -921,6 +1133,8 @@ class WC_Data_Cleanup_Orders {
 								$query_results = wp_cache_get($meta_key_cache, 'wc_data_cleanup');
 								
 								if (false === $query_results) {
+									// Direct DB query needed for custom meta search that WC API doesn't support
+									// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
 									$query_results = $wpdb->get_col($wpdb->prepare(
 										"SELECT DISTINCT p.ID 
 										FROM {$wpdb->posts} p
@@ -932,6 +1146,7 @@ class WC_Data_Cleanup_Orders {
 										$key,
 										$search_term
 									));
+									// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
 									
 									// Cache individual meta key results
 									wp_cache_set($meta_key_cache, $query_results, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);

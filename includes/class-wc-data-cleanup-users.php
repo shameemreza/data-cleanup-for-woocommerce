@@ -316,35 +316,63 @@ class WC_Data_Cleanup_Users {
 			// Always include admin users in search results
 			$include_admins = true;
 			
-			// SQL query to search users - directly get results
-			$sql_results = $wpdb->get_col( $wpdb->prepare( "
-				SELECT ID FROM {$wpdb->users}
-				WHERE (
-					ID LIKE %s OR
-					user_login LIKE %s OR
-					user_email LIKE %s OR
-					user_nicename LIKE %s OR
-					display_name LIKE %s
-				)
-				ORDER BY ID DESC
-				LIMIT 100
-			", $search_term, $search_term, $search_term, $search_term, $search_term ) );
+			// Create a cache key for user search
+			$users_cache_key = 'wc_data_cleanup_users_search_' . md5($search_term);
+			
+			// Try to get cached results first
+			$sql_results = wp_cache_get($users_cache_key, 'wc_data_cleanup');
+			
+			// If not in cache, perform the query
+			if (false === $sql_results) {
+				// SQL query to search users - directly get results
+				// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+				$sql_results = $wpdb->get_col( $wpdb->prepare( "
+					SELECT ID FROM {$wpdb->users}
+					WHERE (
+						ID LIKE %s OR
+						user_login LIKE %s OR
+						user_email LIKE %s OR
+						user_nicename LIKE %s OR
+						display_name LIKE %s
+					)
+					ORDER BY ID DESC
+					LIMIT 100
+				", $search_term, $search_term, $search_term, $search_term, $search_term ) );
+				// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
+				
+				// Cache the results for 5 minutes
+				wp_cache_set($users_cache_key, $sql_results, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
+			}
 			
 			if ( ! empty( $sql_results ) ) {
 				$user_ids = array_merge( $user_ids, $sql_results );
 			}
 			
-			// Also search in user meta - directly get results
-			$meta_results = $wpdb->get_col( $wpdb->prepare( "
-				SELECT DISTINCT user_id FROM {$wpdb->usermeta}
-				WHERE (
-					(meta_key = 'first_name' AND meta_value LIKE %s) OR
-					(meta_key = 'last_name' AND meta_value LIKE %s) OR
-					(meta_key = 'nickname' AND meta_value LIKE %s) OR
-					(meta_key = 'description' AND meta_value LIKE %s)
-				)
-				LIMIT 100
-			", $search_term, $search_term, $search_term, $search_term ) );
+			// Create a cache key for user meta search
+			$usermeta_cache_key = 'wc_data_cleanup_usermeta_search_' . md5($search_term);
+			
+			// Try to get cached results first
+			$meta_results = wp_cache_get($usermeta_cache_key, 'wc_data_cleanup');
+			
+			// If not in cache, perform the query
+			if (false === $meta_results) {
+				// Also search in user meta - directly get results
+				// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+				$meta_results = $wpdb->get_col( $wpdb->prepare( "
+					SELECT DISTINCT user_id FROM {$wpdb->usermeta}
+					WHERE (
+						(meta_key = 'first_name' AND meta_value LIKE %s) OR
+						(meta_key = 'last_name' AND meta_value LIKE %s) OR
+						(meta_key = 'nickname' AND meta_value LIKE %s) OR
+						(meta_key = 'description' AND meta_value LIKE %s)
+					)
+					LIMIT 100
+				", $search_term, $search_term, $search_term, $search_term ) );
+				// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
+				
+				// Cache the results for 5 minutes
+				wp_cache_set($usermeta_cache_key, $meta_results, 'wc_data_cleanup', 5 * MINUTE_IN_SECONDS);
+			}
 			
 			if ( ! empty( $meta_results ) ) {
 				$user_ids = array_merge( $user_ids, $meta_results );
