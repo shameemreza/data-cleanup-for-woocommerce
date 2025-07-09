@@ -165,16 +165,16 @@ class WC_Data_Cleanup_Bookings {
 		$start_date = gmdate( 'YmdHis', $start_timestamp );
 		$end_date = gmdate( 'YmdHis', $end_timestamp );
 		
-		// Query for bookings with start date in the range
-		$query = "
-			SELECT p.ID 
+		// Prepare the SQL query properly
+		return $wpdb->get_col( $wpdb->prepare( 
+			"SELECT p.ID 
 			FROM {$wpdb->posts} p
 			JOIN {$wpdb->postmeta} pm_start ON p.ID = pm_start.post_id AND pm_start.meta_key = '_booking_start'
 			WHERE p.post_type = 'wc_booking'
-			AND pm_start.meta_value BETWEEN %s AND %s
-		";
-		
-		return $wpdb->get_col( $wpdb->prepare( $query, $start_date, $end_date ) );
+			AND pm_start.meta_value BETWEEN %s AND %s",
+			$start_date, 
+			$end_date 
+		) );
 	}
 	
 	/**
@@ -413,16 +413,14 @@ class WC_Data_Cleanup_Bookings {
 		// Search users by display name or email
 		$search_term = '%' . $wpdb->esc_like( $search ) . '%';
 		
-		$sql = $wpdb->prepare(
+		return $wpdb->get_col( $wpdb->prepare(
 			"SELECT ID FROM {$wpdb->users} 
 			WHERE display_name LIKE %s 
 			OR user_email LIKE %s 
 			LIMIT 50",
 			$search_term,
 			$search_term
-		);
-		
-		return $wpdb->get_col( $sql );
+		) );
 	}
 
 	/**
