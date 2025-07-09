@@ -316,8 +316,8 @@ class WC_Data_Cleanup_Users {
 			// Always include admin users in search results
 			$include_admins = true;
 			
-			// SQL query to search users
-			$sql_query = $wpdb->prepare( "
+			// SQL query to search users - directly get results
+			$sql_results = $wpdb->get_col( $wpdb->prepare( "
 				SELECT ID FROM {$wpdb->users}
 				WHERE (
 					ID LIKE %s OR
@@ -328,17 +328,14 @@ class WC_Data_Cleanup_Users {
 				)
 				ORDER BY ID DESC
 				LIMIT 100
-			", $search_term, $search_term, $search_term, $search_term, $search_term );
-			
-			// Get results from users table
-			$sql_results = $wpdb->get_col( $sql_query );
+			", $search_term, $search_term, $search_term, $search_term, $search_term ) );
 			
 			if ( ! empty( $sql_results ) ) {
 				$user_ids = array_merge( $user_ids, $sql_results );
 			}
 			
-			// Also search in user meta
-			$meta_sql_query = $wpdb->prepare( "
+			// Also search in user meta - directly get results
+			$meta_results = $wpdb->get_col( $wpdb->prepare( "
 				SELECT DISTINCT user_id FROM {$wpdb->usermeta}
 				WHERE (
 					(meta_key = 'first_name' AND meta_value LIKE %s) OR
@@ -347,9 +344,7 @@ class WC_Data_Cleanup_Users {
 					(meta_key = 'description' AND meta_value LIKE %s)
 				)
 				LIMIT 100
-			", $search_term, $search_term, $search_term, $search_term );
-			
-			$meta_results = $wpdb->get_col( $meta_sql_query );
+			", $search_term, $search_term, $search_term, $search_term ) );
 			
 			if ( ! empty( $meta_results ) ) {
 				$user_ids = array_merge( $user_ids, $meta_results );
