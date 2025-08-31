@@ -42,6 +42,7 @@ class WC_Data_Cleanup_Bookings {
 	 */
 	private function get_all_bookings() {
 		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Booking cleanup requires direct queries
 		return $wpdb->get_col( "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'wc_booking'" );
 	}
 	
@@ -116,6 +117,7 @@ class WC_Data_Cleanup_Bookings {
 	 */
 	private function get_bookings_by_status( $status ) {
 		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Booking cleanup requires direct queries
 		return $wpdb->get_col( $wpdb->prepare( "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'wc_booking' AND post_status = %s", $status ) );
 	}
 	
@@ -166,6 +168,7 @@ class WC_Data_Cleanup_Bookings {
 		$end_date = gmdate( 'YmdHis', $end_timestamp );
 		
 		// Prepare the SQL query properly
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Booking cleanup requires direct queries
 		return $wpdb->get_col( $wpdb->prepare( 
 			"SELECT p.ID 
 			FROM {$wpdb->posts} p
@@ -197,6 +200,7 @@ class WC_Data_Cleanup_Bookings {
 		global $wpdb;
 		
 		// Get all booking statuses from the database
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Statistics query
 		$statuses = $wpdb->get_col( "
 			SELECT DISTINCT post_status 
 			FROM {$wpdb->posts} 
@@ -207,6 +211,7 @@ class WC_Data_Cleanup_Bookings {
 		$result = array();
 		foreach ( $statuses as $status ) {
 			// Count bookings with this status
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Statistics query
 			$count = $wpdb->get_var( $wpdb->prepare( "
 				SELECT COUNT(*) 
 				FROM {$wpdb->posts} 
@@ -232,6 +237,7 @@ class WC_Data_Cleanup_Bookings {
 	 */
 	private function count_bookings_by_status( $status ) {
 		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Count query
 		return absint( $wpdb->get_var( $wpdb->prepare( 
 			"SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'wc_booking' AND post_status = %s", 
 			$status 
@@ -277,6 +283,7 @@ class WC_Data_Cleanup_Bookings {
 			} else {
 				// Otherwise search by customer name/email
 				$search_term = '%' . $wpdb->esc_like( $search ) . '%';
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Customer search query
 				$customer_ids = $wpdb->get_col( $wpdb->prepare( 
 					"SELECT ID FROM {$wpdb->users} 
 					WHERE display_name LIKE %s 
@@ -286,6 +293,7 @@ class WC_Data_Cleanup_Bookings {
 				) );
 				
 				if ( ! empty( $customer_ids ) ) {
+					// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- Required for customer filtering
 					$args['meta_query'] = array(
 						array(
 							'key'     => '_booking_customer_id',
@@ -310,6 +318,7 @@ class WC_Data_Cleanup_Bookings {
 				$end_date = gmdate( 'YmdHis', $end_timestamp );
 				
 				if ( ! isset( $args['meta_query'] ) ) {
+					// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- Required for date filtering
 					$args['meta_query'] = array();
 				} else {
 					$args['meta_query']['relation'] = 'AND';
@@ -413,6 +422,7 @@ class WC_Data_Cleanup_Bookings {
 		// Search users by display name or email
 		$search_term = '%' . $wpdb->esc_like( $search ) . '%';
 		
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Customer search query
 		return $wpdb->get_col( $wpdb->prepare(
 			"SELECT ID FROM {$wpdb->users} 
 			WHERE display_name LIKE %s 
@@ -465,6 +475,7 @@ class WC_Data_Cleanup_Bookings {
 					// Get order ID before deleting the booking
 					$order_id = 0;
 					if ( $options['delete_order'] ) {
+						// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Order retrieval
 						$order_id = $wpdb->get_var( $wpdb->prepare(
 							"SELECT meta_value FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key = '_booking_order_id'",
 							$booking_id
@@ -481,6 +492,7 @@ class WC_Data_Cleanup_Bookings {
 						// Delete order if required and no other bookings are associated
 						if ( $options['delete_order'] && $order_id ) {
 							// Check if there are other bookings for this order
+							// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Order check query
 							$other_bookings = $wpdb->get_var( $wpdb->prepare(
 								"SELECT COUNT(*) FROM {$wpdb->postmeta} 
 								WHERE meta_key = '_booking_order_id' AND meta_value = %s AND post_id != %d",

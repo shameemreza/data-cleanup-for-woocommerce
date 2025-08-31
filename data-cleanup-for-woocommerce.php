@@ -90,6 +90,7 @@ class WC_Data_Cleanup {
 		require_once WC_DATA_CLEANUP_PLUGIN_DIR . 'includes/class-wc-data-cleanup-users.php';
 		require_once WC_DATA_CLEANUP_PLUGIN_DIR . 'includes/class-wc-data-cleanup-customers.php';
 		require_once WC_DATA_CLEANUP_PLUGIN_DIR . 'includes/class-wc-data-cleanup-orders.php';
+		require_once WC_DATA_CLEANUP_PLUGIN_DIR . 'includes/class-wc-data-cleanup-products.php';
 		
 		// Always include the bookings class - we'll check for WooCommerce Bookings 
 		// functionality at runtime instead of load time
@@ -119,9 +120,12 @@ class WC_Data_Cleanup {
 
 	/**
 	 * Load plugin text domain
+	 * 
+	 * @deprecated 1.1.0 WordPress automatically loads translations for plugins on WordPress.org since version 4.6
 	 */
 	public function load_plugin_textdomain() {
-		load_plugin_textdomain( 'data-cleanup-for-woocommerce', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+		// WordPress 4.6+ automatically loads plugin translations from WordPress.org
+		// This function is kept for backward compatibility but does nothing
 	}
 
 	/**
@@ -135,7 +139,8 @@ class WC_Data_Cleanup {
 
 // Create plugin directory structure if it doesn't exist
 if ( ! file_exists( plugin_dir_path( __FILE__ ) . 'includes/admin' ) ) {
-	mkdir( plugin_dir_path( __FILE__ ) . 'includes/admin', 0755, true );
+	// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_mkdir -- Directory creation on plugin activation
+	wp_mkdir_p( plugin_dir_path( __FILE__ ) . 'includes/admin' );
 }
 
 /**

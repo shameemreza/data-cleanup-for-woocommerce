@@ -8,8 +8,10 @@
   $(document).ready(function () {
     // Check if the WooCommerce Data Cleanup page is present
     if (!$(".wc-data-cleanup").length) {
+      console.log("WC Data Cleanup: Page not found, exiting");
       return;
     }
+    console.log("WC Data Cleanup: Initializing JavaScript");
 
     // Global variables for all functionality
     var currentStatus = "";
@@ -26,13 +28,26 @@
     // Custom confirmation dialog function
     function showConfirmation(title, message, onConfirm) {
       var $modal = $(".wc-data-cleanup-confirm-modal");
+
+      // Check if modal exists
+      if ($modal.length === 0) {
+        console.error("WC Data Cleanup: Confirmation modal not found in DOM");
+        // Fallback to browser confirm
+        if (confirm(title + "\n\n" + message.replace(/<[^>]*>/g, ""))) {
+          if (typeof onConfirm === "function") {
+            onConfirm();
+          }
+        }
+        return;
+      }
+
       var $title = $modal.find(".wc-data-cleanup-confirm-modal-title");
       var $message = $modal.find(".wc-data-cleanup-confirm-modal-message");
       var $proceedBtn = $modal.find(".wc-data-cleanup-confirm-modal-proceed");
 
-      // Set content
+      // Set content - use html() for HTML content
       $title.text(title);
-      $message.text(message);
+      $message.html(message); // Changed from text() to html()
 
       // Clear previous click handlers
       $proceedBtn.off("click");
@@ -1188,7 +1203,24 @@
     });
 
     // User actions
-    $(".wc-data-cleanup-delete-all-users").on("click", function () {
+    console.log("WC Data Cleanup: Attaching user button handlers");
+    console.log(
+      "Delete all users button found:",
+      $(".wc-data-cleanup-delete-all-users").length
+    );
+    console.log("jQuery version:", $.fn.jquery);
+    console.log(
+      "wc_data_cleanup_params available:",
+      typeof wc_data_cleanup_params !== "undefined"
+    );
+
+    $(".wc-data-cleanup-delete-all-users").on("click", function (e) {
+      e.preventDefault();
+      console.log("Delete all users button clicked");
+      console.log(
+        "Modal element exists:",
+        $(".wc-data-cleanup-confirm-modal").length > 0
+      );
       showModal(
         "Delete All Customer Users",
         "Are you sure you want to delete all WordPress users with the customer role? This action cannot be undone.",
@@ -1198,7 +1230,8 @@
       );
     });
 
-    $(".wc-data-cleanup-delete-selected-users").on("click", function () {
+    $(".wc-data-cleanup-delete-selected-users").on("click", function (e) {
+      e.preventDefault();
       var selectedUsers = $("#wc-data-cleanup-user-select").val();
       if (selectedUsers && selectedUsers.length > 0) {
         // Get selected user data
@@ -1318,7 +1351,8 @@
       }
     });
 
-    $(".wc-data-cleanup-delete-except-users").on("click", function () {
+    $(".wc-data-cleanup-delete-except-users").on("click", function (e) {
+      e.preventDefault();
       var selectedUsers = $("#wc-data-cleanup-user-select").val();
       if (selectedUsers && selectedUsers.length > 0) {
         showModal(
@@ -1859,7 +1893,7 @@
       $(".wc-data-cleanup-results").append(
         '<div class="wc-data-cleanup-progress">' +
           '<div class="wc-data-cleanup-progress-bar-container">' +
-          '<div class="wc-data-cleanup-progress-bar" style="width: 0%"></div>' +
+          '<div class="wc-data-cleanup-progress-bar"></div>' +
           "</div>" +
           '<div class="wc-data-cleanup-progress-text">Processing: 0%</div>' +
           "</div>"
@@ -2766,6 +2800,482 @@
         "disabled",
         selectedDateBookings.length === 0
       );
+    }
+
+    // ========================================
+    // PRODUCTS TAB FUNCTIONALITY
+    // ========================================
+    // This code is now replaced by products-tab.js
+    return; // Disable old products tab code
+
+    var duplicateGroups = [];
+    var currentDuplicatePage = 1;
+
+    // Handle product search form
+    var searchTimeout;
+    $("#wc-data-cleanup-product-search").on("input", function () {
+      var searchTerm = $(this).val();
+      clearTimeout(searchTimeout);
+
+      if (searchTerm.length < 2) {
+        $(".wc-data-cleanup-products-list").empty();
+        return;
+      }
+
+      searchTimeout = setTimeout(function () {
+        searchProducts(searchTerm);
+      }, 500);
+    });
+
+    function searchProducts(searchTerm) {
+      $(".wc-data-cleanup-spinner").addClass("is-active");
+
+      $.ajax({
+        url: wc_data_cleanup_params.ajax_url,
+        type: "POST",
+        data: {
+          action: "wc_data_cleanup_get_products",
+          search: searchTerm,
+          nonce: wc_data_cleanup_params.nonce,
+        },
+        success: function (response) {
+          $(".wc-data-cleanup-spinner").removeClass("is-active");
+          if (response.success && response.data) {
+            displayProductsList(response.data);
+          }
+        },
+        error: function () {
+          $(".wc-data-cleanup-spinner").removeClass("is-active");
+        },
+      });
+    }
+
+    function displayProductsList(products) {
+      var html = "";
+
+      if (products.length === 0) {
+        html = "<p>No products found.</p>";
+      } else {
+        html = '<table class="wp-list-table widefat fixed striped">';
+        html += "<thead><tr>";
+        html +=
+          '<th class="check-column"><input type="checkbox" class="select-all-products"/></th>';
+        html += "<th>ID</th>";
+        html += "<th>Title</th>";
+        html += "<th>SKU</th>";
+        html += "<th>Price</th>";
+        html += "<th>Stock</th>";
+        html += "<th>Actions</th>";
+        html += "</tr></thead>";
+        html += "<tbody>";
+
+        $.each(products, function (i, product) {
+          html += "<tr>";
+          html +=
+            '<td><input type="checkbox" class="product-select-checkbox" value="' +
+            product.id +
+            '"/></td>';
+          html += "<td>#" + product.id + "</td>";
+          html += "<td>" + product.text + "</td>";
+          html += "<td>" + (product.sku || "-") + "</td>";
+          html += "<td>" + (product.price || "-") + "</td>";
+          html +=
+            "<td>" + (product.stock !== null ? product.stock : "-") + "</td>";
+          html += "<td>";
+          html +=
+            '<a href="post.php?post=' +
+            product.id +
+            '&action=edit" target="_blank" class="button button-small">Edit</a> ';
+          html +=
+            '<button class="button button-small delete-single-manual" data-id="' +
+            product.id +
+            '">Delete</button>';
+          html += "</td>";
+          html += "</tr>";
+        });
+
+        html += "</tbody></table>";
+      }
+
+      $(".wc-data-cleanup-products-list").html(html);
+    }
+
+    // Handle select all checkbox
+    $(document).on("change", ".select-all-products", function () {
+      var isChecked = $(this).is(":checked");
+      $(".product-select-checkbox").prop("checked", isChecked);
+    });
+
+    // Scan for duplicate products
+    $(".wc-data-cleanup-scan-duplicates").on("click", function () {
+      var $button = $(this);
+      var criteria = $("#wc-data-cleanup-duplicate-criteria").val();
+
+      $button.prop("disabled", true);
+      $(".wc-data-cleanup-spinner").addClass("is-active");
+      $(".wc-data-cleanup-message").empty();
+
+      currentDuplicatePage = 1;
+      loadDuplicates(criteria, currentDuplicatePage);
+    });
+
+    // Load duplicates via AJAX
+    function loadDuplicates(criteria, page) {
+      $.ajax({
+        url: wc_data_cleanup_params.ajax_url,
+        type: "POST",
+        data: {
+          action: "wc_data_cleanup_scan_duplicates",
+          criteria: criteria,
+          page: page,
+          nonce: wc_data_cleanup_params.nonce,
+        },
+        success: function (response) {
+          $(".wc-data-cleanup-spinner").removeClass("is-active");
+          $(".wc-data-cleanup-scan-duplicates").prop("disabled", false);
+
+          if (response.success && response.data.groups.length > 0) {
+            duplicateGroups = response.data.groups;
+            displayDuplicates(response.data);
+            $(".wc-data-cleanup-duplicates-results").show();
+          } else {
+            $(".wc-data-cleanup-message").html(
+              '<div class="notice notice-info"><p>No duplicate products found.</p></div>'
+            );
+            $(".wc-data-cleanup-duplicates-results").hide();
+          }
+        },
+        error: function () {
+          $(".wc-data-cleanup-spinner").removeClass("is-active");
+          $(".wc-data-cleanup-scan-duplicates").prop("disabled", false);
+          $(".wc-data-cleanup-message").html(
+            '<div class="notice notice-error"><p>Error scanning for duplicates. Please try again.</p></div>'
+          );
+        },
+      });
+    }
+
+    // Display duplicate products
+    function displayDuplicates(data) {
+      var html = "";
+
+      $.each(data.groups, function (index, group) {
+        html += '<div class="wc-data-cleanup-duplicate-group">';
+        html +=
+          "<h4>Duplicate Value: <strong>" +
+          group.value +
+          "</strong> (" +
+          group.count +
+          " products)</h4>";
+        html += '<table class="wp-list-table widefat fixed striped">';
+        html += "<thead><tr>";
+        html +=
+          '<th><input type="checkbox" class="select-all-group" data-group="' +
+          index +
+          '"/></th>';
+        html += "<th>ID</th>";
+        html += "<th>Title</th>";
+        html += "<th>SKU</th>";
+        html += "<th>Price</th>";
+        html += "<th>Stock</th>";
+        html += "<th>Created</th>";
+        html += "<th>Actions</th>";
+        html += "</tr></thead>";
+        html += "<tbody>";
+
+        $.each(group.products, function (i, product) {
+          var rowClass = i === 0 ? "oldest-product" : "";
+          html += '<tr class="' + rowClass + '">';
+          html +=
+            '<td><input type="checkbox" class="product-checkbox" value="' +
+            product.id +
+            '" data-group="' +
+            index +
+            '"/></td>';
+          html += "<td>#" + product.id + "</td>";
+          html += "<td>" + product.title + "</td>";
+          html += "<td>" + (product.sku || "-") + "</td>";
+          html += "<td>" + (product.price || "-") + "</td>";
+          html +=
+            "<td>" + (product.stock !== null ? product.stock : "-") + "</td>";
+          html += "<td>" + product.created + "</td>";
+          html += "<td>";
+          html +=
+            '<a href="' +
+            product.edit_link +
+            '" target="_blank" class="button button-small">Edit</a> ';
+          html +=
+            '<a href="' +
+            product.view_link +
+            '" target="_blank" class="button button-small">View</a> ';
+          html +=
+            '<button class="button button-small delete-single-product" data-id="' +
+            product.id +
+            '">Delete</button>';
+          html += "</td>";
+          html += "</tr>";
+        });
+
+        html += "</tbody></table>";
+        html += '<div class="group-actions">';
+        html +=
+          '<button class="button delete-group-duplicates" data-group="' +
+          index +
+          '">Delete Duplicates (Keep Oldest)</button>';
+        html += "</div>";
+        html += "</div>";
+      });
+
+      $(".wc-data-cleanup-duplicates-list").html(html);
+
+      // Add pagination if needed
+      if (data.pages > 1) {
+        var pagination = '<div class="tablenav-pages">';
+        for (var i = 1; i <= data.pages; i++) {
+          var activeClass = i === currentDuplicatePage ? "current" : "";
+          pagination +=
+            '<span class="page-numbers ' +
+            activeClass +
+            '" data-page="' +
+            i +
+            '">' +
+            i +
+            "</span>";
+        }
+        pagination += "</div>";
+        $(".wc-data-cleanup-pagination").html(pagination);
+      }
+    }
+
+    // Handle pagination clicks
+    $(document).on(
+      "click",
+      ".wc-data-cleanup-pagination .page-numbers",
+      function () {
+        var page = $(this).data("page");
+        var criteria = $("#wc-data-cleanup-duplicate-criteria").val();
+        currentDuplicatePage = page;
+        loadDuplicates(criteria, page);
+      }
+    );
+
+    // Handle select all in group
+    $(document).on("change", ".select-all-group", function () {
+      var groupIndex = $(this).data("group");
+      var isChecked = $(this).is(":checked");
+      $('.product-checkbox[data-group="' + groupIndex + '"]').prop(
+        "checked",
+        isChecked
+      );
+    });
+
+    // Delete single product
+    $(document).on("click", ".delete-single-product", function () {
+      var productId = $(this).data("id");
+      var $button = $(this);
+
+      showConfirmation(
+        "Delete Product",
+        "Are you sure you want to delete this product?",
+        function () {
+          $button.prop("disabled", true);
+          deleteProducts([productId], false);
+        }
+      );
+    });
+
+    // Delete group duplicates
+    $(document).on("click", ".delete-group-duplicates", function () {
+      var groupIndex = $(this).data("group");
+      var group = duplicateGroups[groupIndex];
+
+      showConfirmation(
+        "Delete Duplicates",
+        "Are you sure you want to delete " +
+          (group.count - 1) +
+          " duplicate products, keeping the oldest one?",
+        function () {
+          var productIds = [];
+          // Skip first product (oldest)
+          for (var i = 1; i < group.products.length; i++) {
+            productIds.push(group.products[i].id);
+          }
+          deleteProducts(productIds, false);
+        }
+      );
+    });
+
+    // Delete all duplicates buttons
+    $(".wc-data-cleanup-delete-all-duplicates").on("click", function () {
+      showConfirmation(
+        "Delete All Duplicates",
+        "Are you sure you want to delete all duplicate products, keeping the oldest in each group?",
+        function () {
+          deleteAllDuplicates("oldest");
+        }
+      );
+    });
+
+    $(".wc-data-cleanup-delete-all-duplicates-newest").on("click", function () {
+      showConfirmation(
+        "Delete All Duplicates",
+        "Are you sure you want to delete all duplicate products, keeping the newest in each group?",
+        function () {
+          deleteAllDuplicates("newest");
+        }
+      );
+    });
+
+    // Delete all duplicates
+    function deleteAllDuplicates(keep) {
+      $(".wc-data-cleanup-spinner").addClass("is-active");
+
+      $.ajax({
+        url: wc_data_cleanup_params.ajax_url,
+        type: "POST",
+        data: {
+          action: "wc_data_cleanup_delete_duplicates",
+          groups: JSON.stringify(duplicateGroups),
+          keep: keep,
+          force_delete: false,
+          nonce: wc_data_cleanup_params.nonce,
+        },
+        success: function (response) {
+          $(".wc-data-cleanup-spinner").removeClass("is-active");
+
+          if (response.success) {
+            $(".wc-data-cleanup-message").html(
+              '<div class="notice notice-success"><p>' +
+                response.data.message +
+                "</p></div>"
+            );
+            // Refresh the scan
+            $(".wc-data-cleanup-scan-duplicates").trigger("click");
+          } else {
+            $(".wc-data-cleanup-message").html(
+              '<div class="notice notice-error"><p>' +
+                response.data.message +
+                "</p></div>"
+            );
+          }
+        },
+        error: function () {
+          $(".wc-data-cleanup-spinner").removeClass("is-active");
+          $(".wc-data-cleanup-message").html(
+            '<div class="notice notice-error"><p>Error deleting duplicates. Please try again.</p></div>'
+          );
+        },
+      });
+    }
+
+    // Delete selected products
+    $(".wc-data-cleanup-delete-selected-products").on("click", function () {
+      var selectedProducts = [];
+      $(".product-select-checkbox:checked").each(function () {
+        selectedProducts.push($(this).val());
+      });
+
+      if (selectedProducts.length === 0) {
+        alert("Please select products to delete.");
+        return;
+      }
+
+      showConfirmation(
+        "Delete Products",
+        "Are you sure you want to permanently delete " +
+          selectedProducts.length +
+          " selected products?",
+        function () {
+          deleteProducts(selectedProducts, true);
+        }
+      );
+    });
+
+    // Move selected products to trash
+    $(".wc-data-cleanup-trash-selected-products").on("click", function () {
+      var selectedProducts = [];
+      $(".product-select-checkbox:checked").each(function () {
+        selectedProducts.push($(this).val());
+      });
+
+      if (selectedProducts.length === 0) {
+        alert("Please select products to move to trash.");
+        return;
+      }
+
+      showConfirmation(
+        "Move to Trash",
+        "Are you sure you want to move " +
+          selectedProducts.length +
+          " selected products to trash?",
+        function () {
+          deleteProducts(selectedProducts, false);
+        }
+      );
+    });
+
+    // Handle single delete from manual list
+    $(document).on("click", ".delete-single-manual", function () {
+      var productId = $(this).data("id");
+      var $button = $(this);
+
+      showConfirmation(
+        "Delete Product",
+        "Are you sure you want to permanently delete this product?",
+        function () {
+          deleteProducts([productId], true);
+        }
+      );
+    });
+
+    // Delete products function
+    function deleteProducts(productIds, forceDelete) {
+      $(".wc-data-cleanup-spinner").addClass("is-active");
+
+      $.ajax({
+        url: wc_data_cleanup_params.ajax_url,
+        type: "POST",
+        data: {
+          action: "wc_data_cleanup_delete_products",
+          product_ids: productIds,
+          force_delete: forceDelete,
+          nonce: wc_data_cleanup_params.nonce,
+        },
+        success: function (response) {
+          $(".wc-data-cleanup-spinner").removeClass("is-active");
+
+          if (response.success) {
+            $(".wc-data-cleanup-message").html(
+              '<div class="notice notice-success"><p>' +
+                response.data.message +
+                "</p></div>"
+            );
+            // Clear selection and refresh list
+            $(".product-select-checkbox").prop("checked", false);
+            $(".select-all-products").prop("checked", false);
+            // Trigger search again to refresh the list
+            if ($("#wc-data-cleanup-product-search").val()) {
+              $("#wc-data-cleanup-product-search").trigger("input");
+            }
+            // Refresh duplicates if visible
+            if ($(".wc-data-cleanup-duplicates-results").is(":visible")) {
+              $(".wc-data-cleanup-scan-duplicates").trigger("click");
+            }
+          } else {
+            $(".wc-data-cleanup-message").html(
+              '<div class="notice notice-error"><p>' +
+                response.data.message +
+                "</p></div>"
+            );
+          }
+        },
+        error: function () {
+          $(".wc-data-cleanup-spinner").removeClass("is-active");
+          $(".wc-data-cleanup-message").html(
+            '<div class="notice notice-error"><p>Error deleting products. Please try again.</p></div>'
+          );
+        },
+      });
     }
   });
 })(jQuery);

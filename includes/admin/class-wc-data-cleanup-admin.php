@@ -71,14 +71,15 @@ class WC_Data_Cleanup_Admin {
 			$end_timestamp = strtotime($args['date_to'] . ' 23:59:59');
 			
 			if ($start_timestamp && $end_timestamp) {
-				$start_date = date('YmdHis', $start_timestamp);
-				$end_date = date('YmdHis', $end_timestamp);
+				$start_date = gmdate('YmdHis', $start_timestamp);
+				$end_date = gmdate('YmdHis', $end_timestamp);
 				
 				$query .= $wpdb->prepare(" AND pm_start.meta_value BETWEEN %s AND %s", $start_date, $end_date);
 			}
 		}
 		
 		// Execute the query with proper preparation
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Booking analysis requires direct queries
 		$bookings = $wpdb->get_results($wpdb->prepare("SELECT p.ID, p.post_date, p.post_status, 
 			COALESCE(pm_order.meta_value, 0) as order_id,
 			COALESCE(pm_customer.meta_value, 0) as customer_id,
@@ -209,6 +210,13 @@ class WC_Data_Cleanup_Admin {
 		add_action( 'wp_ajax_wc_data_cleanup_get_bookings', array( $this, 'ajax_get_bookings' ) );
 		add_action( 'wp_ajax_wc_data_cleanup_get_booking_statuses', array( $this, 'ajax_get_booking_statuses' ) );
 		add_action( 'wp_ajax_wc_data_cleanup_get_bookings_preview', array( $this, 'ajax_get_bookings_preview' ) );
+		
+		// Product AJAX handlers
+		add_action( 'wp_ajax_wc_data_cleanup_get_products', array( $this, 'ajax_get_products' ) );
+		add_action( 'wp_ajax_wc_data_cleanup_scan_duplicates', array( $this, 'ajax_scan_duplicates' ) );
+		add_action( 'wp_ajax_wc_data_cleanup_delete_products', array( $this, 'ajax_delete_products' ) );
+		add_action( 'wp_ajax_wc_data_cleanup_delete_duplicates', array( $this, 'ajax_delete_duplicates' ) );
+		add_action( 'wp_ajax_wc_data_cleanup_update_product_sku', array( $this, 'ajax_update_product_sku' ) );
 	}
 
 	/**
@@ -248,13 +256,33 @@ class WC_Data_Cleanup_Admin {
 			true
 		);
 
+		// Enqueue products tab script
+		wp_enqueue_script(
+			'wc-data-cleanup-products',
+			WC_DATA_CLEANUP_PLUGIN_URL . 'assets/js/products-tab.js',
+			array( 'jquery' ),
+			WC_DATA_CLEANUP_VERSION,
+			true
+		);
+		
+		// Localize products tab script
+		wp_localize_script(
+			'wc-data-cleanup-products',
+			'wc_data_cleanup_params',
+			array(
+				'ajax_url' => admin_url( 'admin-ajax.php' ),
+				'nonce'    => wp_create_nonce( 'wc_data_cleanup_nonce' ),
+			)
+		);
+
 		// Localize script
 		wp_localize_script(
 			'wc-data-cleanup-admin',
 			'wc_data_cleanup_params',
 			array(
 				'ajax_url'                  => admin_url( 'admin-ajax.php' ),
-				'nonce'                     => wp_create_nonce( 'wc-data-cleanup-nonce' ),
+				'nonce'                     => wp_create_nonce( 'wc_data_cleanup_nonce' ),
+				'currency_symbol'           => get_woocommerce_currency_symbol(),
 				'confirm_delete_all'        => __( 'Are you sure you want to delete all items? This action cannot be undone!', 'data-cleanup-for-woocommerce' ),
 				'confirm_delete_selected'   => __( 'Are you sure you want to delete the selected items? This action cannot be undone!', 'data-cleanup-for-woocommerce' ),
 				'confirm_delete_except'     => __( 'Are you sure you want to delete all items except the selected ones? This action cannot be undone!', 'data-cleanup-for-woocommerce' ),
@@ -262,6 +290,17 @@ class WC_Data_Cleanup_Admin {
 				'processing'                => __( 'Processing...', 'data-cleanup-for-woocommerce' ),
 				'success'                   => __( 'Operation completed successfully.', 'data-cleanup-for-woocommerce' ),
 				'error'                     => __( 'An error occurred.', 'data-cleanup-for-woocommerce' ),
+			)
+		);
+
+		// Also localize for products tab script
+		wp_localize_script(
+			'wc-data-cleanup-products',
+			'wc_data_cleanup_params',
+			array(
+				'ajax_url'                  => admin_url( 'admin-ajax.php' ),
+				'nonce'                     => wp_create_nonce( 'wc_data_cleanup_nonce' ),
+				'currency_symbol'           => get_woocommerce_currency_symbol(),
 			)
 		);
 
@@ -279,6 +318,7 @@ class WC_Data_Cleanup_Admin {
 	 */
 	public function render_admin_page() {
 		// Get current tab
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Tab selection doesn't perform actions
 		$current_tab = isset( $_GET['tab'] ) ? sanitize_text_field( wp_unslash( $_GET['tab'] ) ) : 'users';
 		?>
 		<div class="wrap wc-data-cleanup">
@@ -293,6 +333,9 @@ class WC_Data_Cleanup_Admin {
 				</a>
 				<a href="<?php echo esc_url( admin_url( 'admin.php?page=wc-data-cleanup&tab=orders' ) ); ?>" class="nav-tab <?php echo $current_tab === 'orders' ? 'nav-tab-active' : ''; ?>">
 					<?php esc_html_e( 'Orders', 'data-cleanup-for-woocommerce' ); ?>
+				</a>
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=wc-data-cleanup&tab=products' ) ); ?>" class="nav-tab <?php echo $current_tab === 'products' ? 'nav-tab-active' : ''; ?>">
+					<?php esc_html_e( 'Products', 'data-cleanup-for-woocommerce' ); ?>
 				</a>
 				<?php if ( $this->is_bookings_active() ) : ?>
 				<a href="<?php echo esc_url( admin_url( 'admin.php?page=wc-data-cleanup&tab=bookings' ) ); ?>" class="nav-tab <?php echo $current_tab === 'bookings' ? 'nav-tab-active' : ''; ?>">
@@ -310,6 +353,9 @@ class WC_Data_Cleanup_Admin {
 						break;
 									case 'orders':
 					$this->render_orders_tab();
+					break;
+				case 'products':
+					$this->render_products_tab();
 					break;
 				case 'bookings':
 					if ( $this->is_bookings_active() ) {
@@ -344,7 +390,7 @@ class WC_Data_Cleanup_Admin {
 			<div class="wc-data-cleanup-selection">
 				<h3><?php esc_html_e( 'Select Users', 'data-cleanup-for-woocommerce' ); ?></h3>
 				<p class="description"><?php esc_html_e( 'Type to search for users or leave empty to see recent users. Select one or more users before using the "Delete Selected" or "Delete All Except Selected" options.', 'data-cleanup-for-woocommerce' ); ?></p>
-				<select id="wc-data-cleanup-user-select" class="wc-data-cleanup-select" multiple="multiple" style="width: 100%;" data-placeholder="<?php esc_attr_e( 'Search for users...', 'data-cleanup-for-woocommerce' ); ?>"></select>
+				<select id="wc-data-cleanup-user-select" class="wc-data-cleanup-select" multiple="multiple" data-placeholder="<?php esc_attr_e( 'Search for users...', 'data-cleanup-for-woocommerce' ); ?>"></select>
 				
 							<div class="wc-data-cleanup-legend">
 				<div class="wc-data-cleanup-legend-item">
@@ -391,6 +437,23 @@ class WC_Data_Cleanup_Admin {
 				<div class="wc-data-cleanup-spinner spinner"></div>
 				<div class="wc-data-cleanup-message"></div>
 			</div>
+			
+			<!-- Confirmation Modal -->
+			<div class="wc-data-cleanup-confirm-modal">
+				<div class="wc-data-cleanup-confirm-modal-content">
+					<div class="wc-data-cleanup-confirm-modal-header">
+						<h3 class="wc-data-cleanup-confirm-modal-title">Confirm Action</h3>
+						<span class="wc-data-cleanup-confirm-modal-close">&times;</span>
+					</div>
+					<div class="wc-data-cleanup-confirm-modal-body">
+						<p class="wc-data-cleanup-confirm-modal-message"></p>
+					</div>
+					<div class="wc-data-cleanup-confirm-modal-footer">
+						<button class="button button-primary wc-data-cleanup-confirm-modal-proceed">Proceed</button>
+						<button class="button wc-data-cleanup-confirm-modal-cancel">Cancel</button>
+					</div>
+				</div>
+			</div>
 		</div>
 		<?php
 	}
@@ -410,7 +473,7 @@ class WC_Data_Cleanup_Admin {
 			<div class="wc-data-cleanup-selection">
 				<h3><?php esc_html_e( 'Select Customers', 'data-cleanup-for-woocommerce' ); ?></h3>
 				<p class="description"><?php esc_html_e( 'Type to search for customers or leave empty to see recent customers. Select one or more customers before using the "Delete Selected" or "Delete All Except Selected" options.', 'data-cleanup-for-woocommerce' ); ?></p>
-				<select id="wc-data-cleanup-customer-select" class="wc-data-cleanup-select" multiple="multiple" style="width: 100%;" data-placeholder="<?php esc_attr_e( 'Search for customers...', 'data-cleanup-for-woocommerce' ); ?>"></select>
+				<select id="wc-data-cleanup-customer-select" class="wc-data-cleanup-select" multiple="multiple" data-placeholder="<?php esc_attr_e( 'Search for customers...', 'data-cleanup-for-woocommerce' ); ?>"></select>
 				
 				<div class="wc-data-cleanup-legend">
 					<div class="wc-data-cleanup-legend-item">
@@ -451,6 +514,23 @@ class WC_Data_Cleanup_Admin {
 				<div class="wc-data-cleanup-spinner spinner"></div>
 				<div class="wc-data-cleanup-message"></div>
 			</div>
+			
+			<!-- Confirmation Modal -->
+			<div class="wc-data-cleanup-confirm-modal">
+				<div class="wc-data-cleanup-confirm-modal-content">
+					<div class="wc-data-cleanup-confirm-modal-header">
+						<h3 class="wc-data-cleanup-confirm-modal-title">Confirm Action</h3>
+						<span class="wc-data-cleanup-confirm-modal-close">&times;</span>
+					</div>
+					<div class="wc-data-cleanup-confirm-modal-body">
+						<p class="wc-data-cleanup-confirm-modal-message"></p>
+					</div>
+					<div class="wc-data-cleanup-confirm-modal-footer">
+						<button class="button button-primary wc-data-cleanup-confirm-modal-proceed">Proceed</button>
+						<button class="button wc-data-cleanup-confirm-modal-cancel">Cancel</button>
+					</div>
+				</div>
+			</div>
 		</div>
 		<?php
 	}
@@ -473,7 +553,7 @@ class WC_Data_Cleanup_Admin {
 			<div class="wc-data-cleanup-selection">
 				<h3><?php esc_html_e( 'Select Orders', 'data-cleanup-for-woocommerce' ); ?></h3>
 				<p class="description"><?php esc_html_e( 'Type to search for orders by ID or customer name, or leave empty to see recent orders. Select one or more orders before using the "Delete Selected" or "Delete All Except Selected" options.', 'data-cleanup-for-woocommerce' ); ?></p>
-				<select id="wc-data-cleanup-order-select" class="wc-data-cleanup-select" multiple="multiple" style="width: 100%;" data-placeholder="<?php esc_attr_e( 'Search for orders...', 'data-cleanup-for-woocommerce' ); ?>"></select>
+				<select id="wc-data-cleanup-order-select" class="wc-data-cleanup-select" multiple="multiple" data-placeholder="<?php esc_attr_e( 'Search for orders...', 'data-cleanup-for-woocommerce' ); ?>"></select>
 			</div>
 			
 			<div class="wc-data-cleanup-actions">
@@ -535,6 +615,81 @@ class WC_Data_Cleanup_Admin {
 				<div class="wc-data-cleanup-spinner spinner"></div>
 				<div class="wc-data-cleanup-message"></div>
 			</div>
+			
+			<!-- Confirmation Modal -->
+			<div class="wc-data-cleanup-confirm-modal">
+				<div class="wc-data-cleanup-confirm-modal-content">
+					<div class="wc-data-cleanup-confirm-modal-header">
+						<h3 class="wc-data-cleanup-confirm-modal-title">Confirm Action</h3>
+						<span class="wc-data-cleanup-confirm-modal-close">&times;</span>
+					</div>
+					<div class="wc-data-cleanup-confirm-modal-body">
+						<p class="wc-data-cleanup-confirm-modal-message"></p>
+					</div>
+					<div class="wc-data-cleanup-confirm-modal-footer">
+						<button class="button button-primary wc-data-cleanup-confirm-modal-proceed">Proceed</button>
+						<button class="button wc-data-cleanup-confirm-modal-cancel">Cancel</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render products tab
+	 */
+	public function render_products_tab() {
+		?>
+		<div class="wc-data-cleanup-tab-content">
+			<h2><?php esc_html_e( 'Product Duplicates Cleanup', 'data-cleanup-for-woocommerce' ); ?></h2>
+			
+			<div class="wc-data-cleanup-warning">
+				<p><strong><?php esc_html_e( 'Warning: Deleting products is a permanent action and cannot be undone. Please backup your database before proceeding.', 'data-cleanup-for-woocommerce' ); ?></strong></p>
+			</div>
+			
+			<!-- Scanner Actions -->
+			<div class="wc-data-cleanup-scanner-section">
+				<button type="button" class="button button-primary wc-data-cleanup-scan-duplicates">
+					<?php esc_html_e( 'Scan for Duplicates', 'data-cleanup-for-woocommerce' ); ?>
+				</button>
+				<p class="description"><?php esc_html_e( 'This will scan all products for duplicates based on SKU, Title, and Barcodes (GTIN, EAN, UPC, ISBN, MPN). Title duplicates are only checked for main products, not variations.', 'data-cleanup-for-woocommerce' ); ?></p>
+			</div>
+			
+			<!-- Messages -->
+			<div class="wc-data-cleanup-messages"></div>
+			
+			<!-- Results Section -->
+			<div class="wc-data-cleanup-results-section">
+				<div class="wc-data-cleanup-results-header">
+					<h3 class="wc-data-cleanup-results-title"><?php esc_html_e( 'Results', 'data-cleanup-for-woocommerce' ); ?></h3>
+					<div class="wc-data-cleanup-bulk-actions">
+						<button type="button" class="button wc-data-cleanup-select-all-results">
+							<?php esc_html_e( 'Select All', 'data-cleanup-for-woocommerce' ); ?>
+						</button>
+						<button type="button" class="button wc-data-cleanup-delete-selected-results">
+							<?php esc_html_e( 'Delete Selected', 'data-cleanup-for-woocommerce' ); ?>
+							<span class="wc-data-cleanup-selected-count">(0)</span>
+						</button>
+					</div>
+					<div class="wc-data-cleanup-clear"></div>
+				</div>
+				
+				<div class="wc-data-cleanup-message"></div>
+				
+				<div class="wc-data-cleanup-results-table">
+					<!-- Results will be displayed here -->
+				</div>
+				
+				<div class="wc-data-cleanup-pagination">
+					<!-- Pagination will be displayed here -->
+				</div>
+			</div>
+			
+			<div class="wc-data-cleanup-loading">
+				<span class="spinner is-active"></span>
+				<p><?php esc_html_e( 'Loading...', 'data-cleanup-for-woocommerce' ); ?></p>
+			</div>
 		</div>
 		<?php
 	}
@@ -547,6 +702,7 @@ class WC_Data_Cleanup_Admin {
 		global $wpdb;
 		
 		// Get counts of bookings by status
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Statistics query for admin display
 		$booking_counts = $wpdb->get_results("
 			SELECT post_status, COUNT(*) as count 
 			FROM {$wpdb->posts} 
@@ -643,10 +799,10 @@ class WC_Data_Cleanup_Admin {
 							<span class="spinner is-active"></span>
 							<p><?php esc_html_e( 'Loading bookings...', 'data-cleanup-for-woocommerce' ); ?></p>
 						</div>
-						<div class="wc-data-cleanup-no-bookings" style="display:none;">
+						<div class="wc-data-cleanup-no-bookings" >
 							<p><?php esc_html_e( 'No bookings found matching your criteria.', 'data-cleanup-for-woocommerce' ); ?></p>
 						</div>
-						<table class="wc-data-cleanup-bookings-table widefat striped" style="display:none;">
+						<table class="wc-data-cleanup-bookings-table widefat striped" >
 							<thead>
 								<tr>
 									<th width="30"><input type="checkbox" id="booking-select-all"></th>
@@ -701,7 +857,7 @@ class WC_Data_Cleanup_Admin {
 					</div>
 					
 					<!-- Date range preview section -->
-					<div class="wc-data-cleanup-date-bookings-preview" style="display:none;">
+					<div class="wc-data-cleanup-date-bookings-preview" >
 						<div class="wc-data-cleanup-preview-header">
 							<h4 class="wc-data-cleanup-date-preview-title"><?php esc_html_e( 'Bookings in Selected Date Range', 'data-cleanup-for-woocommerce' ); ?> <span class="wc-data-cleanup-date-preview-badge">0</span></h4>
 							<div class="wc-data-cleanup-preview-controls">
@@ -718,10 +874,10 @@ class WC_Data_Cleanup_Admin {
 								<span class="spinner is-active"></span>
 								<p><?php esc_html_e( 'Loading bookings...', 'data-cleanup-for-woocommerce' ); ?></p>
 							</div>
-							<div class="wc-data-cleanup-no-bookings" style="display:none;">
+							<div class="wc-data-cleanup-no-bookings" >
 								<p><?php esc_html_e( 'No bookings found in this date range.', 'data-cleanup-for-woocommerce' ); ?></p>
 							</div>
-							<table class="wc-data-cleanup-date-bookings-table widefat striped" style="display:none;">
+							<table class="wc-data-cleanup-date-bookings-table widefat striped" >
 								<thead>
 									<tr>
 										<th width="30"><input type="checkbox" id="date-range-select-all"></th>
@@ -762,7 +918,7 @@ class WC_Data_Cleanup_Admin {
 		</div>
 		
 		<!-- Custom Confirmation Modal -->
-		<div class="wc-data-cleanup-confirm-modal" style="display: none;">
+		<div class="wc-data-cleanup-confirm-modal" >
 			<div class="wc-data-cleanup-confirm-modal-content">
 				<div class="wc-data-cleanup-confirm-modal-header">
 					<h3 class="wc-data-cleanup-confirm-modal-title">Confirm Action</h3>
@@ -786,7 +942,7 @@ class WC_Data_Cleanup_Admin {
 	 */
 	public function ajax_delete_users() {
 		// Check nonce
-		if ( ! check_ajax_referer( 'wc-data-cleanup-nonce', 'nonce', false ) ) {
+		if ( ! check_ajax_referer( 'wc_data_cleanup_nonce', 'nonce', false ) ) {
 			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
@@ -799,6 +955,7 @@ class WC_Data_Cleanup_Admin {
 		$user_ids = isset( $_POST['user_ids'] ) ? array_map( 'absint', wp_unslash( $_POST['user_ids'] ) ) : array();
 		
 		// Get additional options
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Sanitized in next lines
 		$options = isset( $_POST['options'] ) ? wp_unslash( $_POST['options'] ) : array();
 		$options = is_array( $options ) ? $options : array();
 		
@@ -848,7 +1005,7 @@ class WC_Data_Cleanup_Admin {
 	 */
 	public function ajax_delete_customers() {
 		// Check nonce
-		if ( ! check_ajax_referer( 'wc-data-cleanup-nonce', 'nonce', false ) ) {
+		if ( ! check_ajax_referer( 'wc_data_cleanup_nonce', 'nonce', false ) ) {
 			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
@@ -861,6 +1018,7 @@ class WC_Data_Cleanup_Admin {
 		$customer_ids = isset( $_POST['customer_ids'] ) ? array_map( 'absint', wp_unslash( $_POST['customer_ids'] ) ) : array();
 		
 		// Get additional options
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Sanitized in next lines
 		$options = isset( $_POST['options'] ) ? wp_unslash( $_POST['options'] ) : array();
 		$options = is_array( $options ) ? $options : array();
 		
@@ -909,7 +1067,7 @@ class WC_Data_Cleanup_Admin {
 	 */
 	public function ajax_delete_orders() {
 		// Check nonce
-		if ( ! check_ajax_referer( 'wc-data-cleanup-nonce', 'nonce', false ) ) {
+		if ( ! check_ajax_referer( 'wc_data_cleanup_nonce', 'nonce', false ) ) {
 			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
@@ -925,6 +1083,7 @@ class WC_Data_Cleanup_Admin {
 		$date_to = isset( $_POST['date_to'] ) ? sanitize_text_field( wp_unslash( $_POST['date_to'] ) ) : '';
 		
 		// Get additional options
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Sanitized in next lines
 		$options = isset( $_POST['options'] ) ? wp_unslash( $_POST['options'] ) : array();
 		$options = is_array( $options ) ? $options : array();
 		
@@ -978,7 +1137,7 @@ class WC_Data_Cleanup_Admin {
 	 */
 	public function ajax_get_users() {
 		// Check nonce
-		if ( ! check_ajax_referer( 'wc-data-cleanup-nonce', 'nonce', false ) ) {
+		if ( ! check_ajax_referer( 'wc_data_cleanup_nonce', 'nonce', false ) ) {
 			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
@@ -1002,7 +1161,7 @@ class WC_Data_Cleanup_Admin {
 	 */
 	public function ajax_get_customers() {
 		// Check nonce
-		if ( ! check_ajax_referer( 'wc-data-cleanup-nonce', 'nonce', false ) ) {
+		if ( ! check_ajax_referer( 'wc_data_cleanup_nonce', 'nonce', false ) ) {
 			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
@@ -1026,7 +1185,7 @@ class WC_Data_Cleanup_Admin {
 	 */
 	public function ajax_get_orders() {
 		// Check nonce
-		if ( ! check_ajax_referer( 'wc-data-cleanup-nonce', 'nonce', false ) ) {
+		if ( ! check_ajax_referer( 'wc_data_cleanup_nonce', 'nonce', false ) ) {
 			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
@@ -1066,7 +1225,7 @@ class WC_Data_Cleanup_Admin {
 	 */
 	public function ajax_get_order_statuses() {
 		// Check nonce
-		if ( ! check_ajax_referer( 'wc-data-cleanup-nonce', 'nonce', false ) ) {
+		if ( ! check_ajax_referer( 'wc_data_cleanup_nonce', 'nonce', false ) ) {
 			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
@@ -1089,7 +1248,7 @@ class WC_Data_Cleanup_Admin {
 	 */
 	public function ajax_delete_bookings() {
 		// Check nonce
-		if ( ! check_ajax_referer( 'wc-data-cleanup-nonce', 'nonce', false ) ) {
+		if ( ! check_ajax_referer( 'wc_data_cleanup_nonce', 'nonce', false ) ) {
 			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
@@ -1101,6 +1260,7 @@ class WC_Data_Cleanup_Admin {
 		// Check for direct booking IDs from the preview selection
 		if (isset($_POST['booking_ids']) && !isset($_POST['action_type'])) {
 			$booking_ids = array_map('absint', wp_unslash($_POST['booking_ids']));
+			// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- Boolean check, no need for sanitization
 			$delete_order = isset($_POST['delete_order']) && $_POST['delete_order'] ? true : false;
 			
 			// Sanitize options
@@ -1135,6 +1295,7 @@ class WC_Data_Cleanup_Admin {
 		$date_to = isset( $_POST['date_to'] ) ? sanitize_text_field( wp_unslash( $_POST['date_to'] ) ) : '';
 		
 		// Get additional options
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Sanitized in next lines
 		$options = isset( $_POST['options'] ) ? wp_unslash( $_POST['options'] ) : array();
 		$options = is_array( $options ) ? $options : array();
 		
@@ -1185,7 +1346,7 @@ class WC_Data_Cleanup_Admin {
 	 */
 	public function ajax_get_bookings() {
 		// Check nonce
-		if ( ! check_ajax_referer( 'wc-data-cleanup-nonce', 'nonce', false ) ) {
+		if ( ! check_ajax_referer( 'wc_data_cleanup_nonce', 'nonce', false ) ) {
 			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'data-cleanup-for-woocommerce' ) ) );
 			return;
 		}
@@ -1232,7 +1393,7 @@ class WC_Data_Cleanup_Admin {
 	 */
 	public function ajax_get_booking_statuses() {
 		// Check nonce
-		if ( ! check_ajax_referer( 'wc-data-cleanup-nonce', 'nonce', false ) ) {
+		if ( ! check_ajax_referer( 'wc_data_cleanup_nonce', 'nonce', false ) ) {
 			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
@@ -1252,7 +1413,7 @@ class WC_Data_Cleanup_Admin {
 	 */
 	public function ajax_get_bookings_preview() {
 		// Check nonce
-		if ( ! check_ajax_referer( 'wc-data-cleanup-nonce', 'nonce', false ) ) {
+		if ( ! check_ajax_referer( 'wc_data_cleanup_nonce', 'nonce', false ) ) {
 			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'data-cleanup-for-woocommerce' ) ) );
 			return;
 		}
@@ -1271,16 +1432,7 @@ class WC_Data_Cleanup_Admin {
 		$limit = isset( $_GET['limit'] ) ? absint( $_GET['limit'] ) : 20;
 		$offset = ( $page - 1 ) * $limit;
 		
-		// Debug log
-		if ( defined('WP_DEBUG') && WP_DEBUG ) {
-			error_log('WC Data Cleanup - Bookings Preview Request');
-			error_log('Status: ' . $status);
-			error_log('Date From: ' . $date_from);
-			error_log('Date To: ' . $date_to);
-			error_log('Page: ' . $page);
-			error_log('Limit: ' . $limit);
-			error_log('Offset: ' . $offset);
-		}
+
 		
 		global $wpdb;
 		
@@ -1310,8 +1462,8 @@ class WC_Data_Cleanup_Admin {
 			$end_timestamp = strtotime($date_to . ' 23:59:59');
 			
 			if ($start_timestamp && $end_timestamp) {
-				$start_date = date('YmdHis', $start_timestamp);
-				$end_date = date('YmdHis', $end_timestamp);
+				$start_date = gmdate('YmdHis', $start_timestamp);
+				$end_date = gmdate('YmdHis', $end_timestamp);
 				
 				$query .= $wpdb->prepare(" AND pm_start.meta_value BETWEEN %s AND %s", $start_date, $end_date);
 			}
@@ -1320,6 +1472,7 @@ class WC_Data_Cleanup_Admin {
 		// Get total count for pagination using properly prepared queries without conditionals in SQL
 		if (!empty($status) && !empty($date_from) && !empty($date_to)) {
 			// Both status and date filters
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Count query for pagination
 			$total_count = $wpdb->get_var($wpdb->prepare(
 				"SELECT COUNT(*) 
 				FROM {$wpdb->posts} p
@@ -1333,6 +1486,7 @@ class WC_Data_Cleanup_Admin {
 			));
 		} elseif (!empty($status)) {
 			// Only status filter
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Count query for pagination
 			$total_count = $wpdb->get_var($wpdb->prepare(
 				"SELECT COUNT(*) 
 				FROM {$wpdb->posts} p
@@ -1343,6 +1497,7 @@ class WC_Data_Cleanup_Admin {
 			));
 		} elseif (!empty($date_from) && !empty($date_to)) {
 			// Only date filter
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Count query for pagination
 			$total_count = $wpdb->get_var($wpdb->prepare(
 				"SELECT COUNT(*) 
 				FROM {$wpdb->posts} p
@@ -1354,6 +1509,7 @@ class WC_Data_Cleanup_Admin {
 			));
 		} else {
 			// No filters
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Count query for pagination
 			$total_count = $wpdb->get_var(
 				"SELECT COUNT(*) 
 				FROM {$wpdb->posts} p
@@ -1362,14 +1518,12 @@ class WC_Data_Cleanup_Admin {
 			);
 		}
 		
-		if ( defined('WP_DEBUG') && WP_DEBUG ) {
-			error_log('Count Query: ' . $count_query);
-			error_log('Total Count: ' . $total_count);
-		}
+
 		
 		// Execute query based on the filter conditions using full SQL statements in each prepare call
 		if (!empty($status) && !empty($date_from) && !empty($date_to)) {
 			// Both status and date filters
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Booking data retrieval
 			$bookings = $wpdb->get_results($wpdb->prepare(
 				"SELECT p.ID, p.post_date, p.post_status, 
 				COALESCE(pm_order.meta_value, 0) as order_id,
@@ -1396,6 +1550,7 @@ class WC_Data_Cleanup_Admin {
 			));
 		} elseif (!empty($status)) {
 			// Only status filter
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Booking data retrieval
 			$bookings = $wpdb->get_results($wpdb->prepare(
 				"SELECT p.ID, p.post_date, p.post_status, 
 				COALESCE(pm_order.meta_value, 0) as order_id,
@@ -1419,6 +1574,7 @@ class WC_Data_Cleanup_Admin {
 			));
 		} elseif (!empty($date_from) && !empty($date_to)) {
 			// Only date filter
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Booking data retrieval
 			$bookings = $wpdb->get_results($wpdb->prepare(
 				"SELECT p.ID, p.post_date, p.post_status, 
 				COALESCE(pm_order.meta_value, 0) as order_id,
@@ -1443,6 +1599,7 @@ class WC_Data_Cleanup_Admin {
 			));
 		} else {
 			// No filters
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Booking data retrieval
 			$bookings = $wpdb->get_results($wpdb->prepare(
 				"SELECT p.ID, p.post_date, p.post_status, 
 				COALESCE(pm_order.meta_value, 0) as order_id,
@@ -1464,13 +1621,7 @@ class WC_Data_Cleanup_Admin {
 			));
 		}
 		
-		if ( defined('WP_DEBUG') && WP_DEBUG ) {
-			error_log('Query executed with prepared statement');
-		}
-		
-		if ( defined('WP_DEBUG') && WP_DEBUG ) {
-			error_log('Bookings found: ' . count($bookings));
-		}
+
 		
 		$formatted_bookings = array();
 		
@@ -1531,10 +1682,7 @@ class WC_Data_Cleanup_Admin {
 				'date_to' => $date_to
 			]
 		);
-		
-		if ( defined('WP_DEBUG') && WP_DEBUG ) {
-			error_log('Response data: ' . json_encode($response_data));
-		}
+
 		
 		wp_send_json_success($response_data);
 	}
@@ -1619,7 +1767,7 @@ class WC_Data_Cleanup_Admin {
 	 */
 	public function ajax_delete_bookings_by_date_range() {
 		// Check nonce
-		if ( ! check_ajax_referer( 'wc-data-cleanup-nonce', 'nonce', false ) ) {
+		if ( ! check_ajax_referer( 'wc_data_cleanup_nonce', 'nonce', false ) ) {
 			wp_send_json_error( array( 'message' => __( 'Security check failed.', 'data-cleanup-for-woocommerce' ) ) );
 		}
 
@@ -1631,7 +1779,8 @@ class WC_Data_Cleanup_Admin {
 		// Get date range
 		$date_from = isset( $_POST['date_from'] ) ? sanitize_text_field( wp_unslash( $_POST['date_from'] ) ) : '';
 		$date_to = isset( $_POST['date_to'] ) ? sanitize_text_field( wp_unslash( $_POST['date_to'] ) ) : '';
-		$delete_order = isset( $_POST['delete_order'] ) && $_POST['delete_order'] ? true : false;
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- Boolean check, sanitized as boolean
+		$delete_order = isset( $_POST['delete_order'] ) && wp_unslash( $_POST['delete_order'] ) ? true : false;
 		
 		// Validate dates
 		if ( empty( $date_from ) || empty( $date_to ) ) {
@@ -1654,6 +1803,186 @@ class WC_Data_Cleanup_Admin {
 			wp_send_json_success( array(
 				'message' => __( 'Successfully deleted bookings.', 'data-cleanup-for-woocommerce' ),
 				'count' => $result['deleted']
+			) );
+		}
+	}
+
+	/**
+	 * AJAX handler to get products
+	 */
+	public function ajax_get_products() {
+		// Verify nonce
+		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'wc_data_cleanup_nonce' ) ) {
+			wp_die( esc_html__( 'Security check failed', 'data-cleanup-for-woocommerce' ) );
+		}
+
+		// Check permissions
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_die( esc_html__( 'You do not have permission to perform this action', 'data-cleanup-for-woocommerce' ) );
+		}
+
+		$search = isset( $_POST['search'] ) ? sanitize_text_field( wp_unslash( $_POST['search'] ) ) : '';
+		
+		$products_handler = new WC_Data_Cleanup_Products();
+		$results = $products_handler->search_products( $search );
+
+		wp_send_json_success( $results );
+	}
+
+	/**
+	 * AJAX handler to scan for duplicate products
+	 */
+	public function ajax_scan_duplicates() {
+		// Verify nonce
+		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'wc_data_cleanup_nonce' ) ) {
+			wp_send_json_error( array( 'message' => esc_html__( 'Security check failed', 'data-cleanup-for-woocommerce' ) ) );
+			return;
+		}
+
+		// Check permissions
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_send_json_error( array( 'message' => esc_html__( 'You do not have permission to perform this action', 'data-cleanup-for-woocommerce' ) ) );
+			return;
+		}
+
+		try {
+			// Always scan all duplicates
+			$products_handler = new WC_Data_Cleanup_Products();
+			$duplicates = $products_handler->find_duplicates( 'all' );
+			
+			// Ensure we always return the expected structure
+			if ( ! isset( $duplicates['products'] ) ) {
+				$duplicates = array(
+					'products' => array(),
+					'total' => 0
+				);
+			}
+			
+			wp_send_json_success( $duplicates );
+		} catch ( Exception $e ) {
+			wp_send_json_error( array( 'message' => 'Error: ' . $e->getMessage() ) );
+		}
+	}
+
+	/**
+	 * AJAX handler to delete products
+	 */
+	public function ajax_delete_products() {
+		// Verify nonce
+		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'wc_data_cleanup_nonce' ) ) {
+			wp_die( esc_html__( 'Security check failed', 'data-cleanup-for-woocommerce' ) );
+		}
+
+		// Check permissions
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_die( esc_html__( 'You do not have permission to perform this action', 'data-cleanup-for-woocommerce' ) );
+		}
+
+		$product_ids = isset( $_POST['product_ids'] ) ? array_map( 'absint', (array) $_POST['product_ids'] ) : array();
+		$force_delete = isset( $_POST['force_delete'] ) && $_POST['force_delete'] === 'true';
+
+		if ( empty( $product_ids ) ) {
+			wp_send_json_error( __( 'No products selected', 'data-cleanup-for-woocommerce' ) );
+		}
+
+		$products_handler = new WC_Data_Cleanup_Products();
+		$result = $products_handler->delete_products( $product_ids, $force_delete );
+
+		if ( ! empty( $result['errors'] ) ) {
+			wp_send_json_error( array(
+				'message' => sprintf(
+					/* translators: %1$d: number of products deleted, %2$s: error messages */
+					__( 'Deleted %1$d products. Errors: %2$s', 'data-cleanup-for-woocommerce' ),
+					$result['deleted'],
+					implode( ', ', $result['errors'] )
+				)
+			) );
+		} else {
+			wp_send_json_success( array(
+				'message' => sprintf(
+					/* translators: %d: number of products deleted */
+					__( 'Successfully deleted %d products', 'data-cleanup-for-woocommerce' ),
+					$result['deleted']
+				)
+			) );
+		}
+	}
+
+	/**
+	 * AJAX handler to delete duplicate products
+	 */
+	public function ajax_delete_duplicates() {
+		// Verify nonce
+		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'wc_data_cleanup_nonce' ) ) {
+			wp_die( esc_html__( 'Security check failed', 'data-cleanup-for-woocommerce' ) );
+		}
+
+		// Check permissions
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_die( esc_html__( 'You do not have permission to perform this action', 'data-cleanup-for-woocommerce' ) );
+		}
+
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- JSON data sanitized after decode
+		$duplicate_groups = isset( $_POST['groups'] ) ? json_decode( wp_unslash( $_POST['groups'] ), true ) : array();
+		$keep = isset( $_POST['keep'] ) ? sanitize_text_field( wp_unslash( $_POST['keep'] ) ) : 'oldest';
+		$force_delete = isset( $_POST['force_delete'] ) && $_POST['force_delete'] === 'true';
+
+		if ( empty( $duplicate_groups ) ) {
+			wp_send_json_error( __( 'No duplicate groups provided', 'data-cleanup-for-woocommerce' ) );
+		}
+
+		$products_handler = new WC_Data_Cleanup_Products();
+		$result = $products_handler->delete_duplicates_bulk( $duplicate_groups, $keep, $force_delete );
+
+		if ( ! empty( $result['errors'] ) ) {
+			wp_send_json_error( array(
+				'message' => sprintf(
+					/* translators: %1$d: number of duplicate products deleted, %2$s: error messages */
+					__( 'Deleted %1$d duplicate products. Errors: %2$s', 'data-cleanup-for-woocommerce' ),
+					$result['deleted'],
+					implode( ', ', $result['errors'] )
+				)
+			) );
+		} else {
+			wp_send_json_success( array(
+				'message' => sprintf(
+					/* translators: %d: number of duplicate products deleted */
+					__( 'Successfully deleted %d duplicate products', 'data-cleanup-for-woocommerce' ),
+					$result['deleted']
+				)
+			) );
+		}
+	}
+
+	/**
+	 * AJAX handler to update product SKU
+	 */
+	public function ajax_update_product_sku() {
+		// Verify nonce
+		if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['nonce'] ) ), 'wc_data_cleanup_nonce' ) ) {
+			wp_die( esc_html__( 'Security check failed', 'data-cleanup-for-woocommerce' ) );
+		}
+
+		// Check permissions
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_die( esc_html__( 'You do not have permission to perform this action', 'data-cleanup-for-woocommerce' ) );
+		}
+
+		$product_id = isset( $_POST['product_id'] ) ? absint( $_POST['product_id'] ) : 0;
+		$new_sku = isset( $_POST['sku'] ) ? sanitize_text_field( wp_unslash( $_POST['sku'] ) ) : '';
+
+		if ( ! $product_id ) {
+			wp_send_json_error( __( 'Invalid product ID', 'data-cleanup-for-woocommerce' ) );
+		}
+
+		$products_handler = new WC_Data_Cleanup_Products();
+		$result = $products_handler->update_product_sku( $product_id, $new_sku );
+
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( $result->get_error_message() );
+		} else {
+			wp_send_json_success( array(
+				'message' => __( 'SKU updated successfully', 'data-cleanup-for-woocommerce' )
 			) );
 		}
 	}

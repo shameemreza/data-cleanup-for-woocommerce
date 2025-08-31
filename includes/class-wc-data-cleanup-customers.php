@@ -169,6 +169,7 @@ class WC_Data_Cleanup_Customers {
 		global $wpdb;
 
 		// Query customer IDs directly from the database
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Customer data retrieval
 		$customer_ids = $wpdb->get_col(
 			"SELECT customer_id FROM {$wpdb->prefix}wc_customer_lookup"
 		);
@@ -256,6 +257,7 @@ class WC_Data_Cleanup_Customers {
 				$all_customer_ids[] = $direct_user_id;
 				
 				// Also try direct customer ID from meta
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Customer search query
 				$meta_results = $wpdb->get_col( $wpdb->prepare( "
 					SELECT user_id FROM {$wpdb->usermeta}
 					WHERE meta_key = 'customer_id' AND meta_value = %s
@@ -268,6 +270,7 @@ class WC_Data_Cleanup_Customers {
 			}
 			
 			// Search in users table
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Customer search query
 			$user_results = $wpdb->get_col( $wpdb->prepare( "
 				SELECT ID FROM {$wpdb->users}
 				WHERE 
@@ -283,6 +286,7 @@ class WC_Data_Cleanup_Customers {
 			}
 			
 			// Search in user meta
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Customer search query
 			$meta_results = $wpdb->get_col( $wpdb->prepare( "
 				SELECT DISTINCT user_id FROM {$wpdb->usermeta}
 				WHERE 
@@ -307,6 +311,7 @@ class WC_Data_Cleanup_Customers {
 			
 			if ( $is_hpos_enabled ) {
 				// HPOS compatible search
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Order customer search
 				$order_meta_results = $wpdb->get_col( $wpdb->prepare( "
 					SELECT DISTINCT customer_id FROM {$wpdb->prefix}wc_orders
 					WHERE 
@@ -319,6 +324,7 @@ class WC_Data_Cleanup_Customers {
 				", $search_term, $search_term, $search_term, $search_term, $search_term ) );
 			} else {
 				// Traditional order meta search
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Order customer search
 				$order_meta_results = $wpdb->get_col( $wpdb->prepare( "
 					SELECT DISTINCT meta_value FROM {$wpdb->postmeta}
 					WHERE meta_key = '_customer_user' AND meta_value > 0 AND meta_value IN (
@@ -499,6 +505,7 @@ class WC_Data_Cleanup_Customers {
 		if ( $is_hpos_enabled ) {
 			// Use HPOS compatible query
 			global $wpdb;
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Order count query
 			$count = $wpdb->get_var( $wpdb->prepare( "
 				SELECT COUNT(*) FROM {$wpdb->prefix}wc_orders
 				WHERE customer_id = %d
