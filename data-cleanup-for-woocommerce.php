@@ -3,7 +3,7 @@
  * Plugin Name: Data Cleanup for WooCommerce
  * Plugin URI: https://github.com/shameemreza/data-cleanup-for-woocommerce
  * Description: Advanced tool for cleaning up WooCommerce data including users, customers, orders, and bookings with selective deletion options.
- * Version: 1.1.0
+ * Version: 1.1.1
  * Author: Shameem Reza
  * Author URI: https://shameem.dev
  * Text Domain: data-cleanup-for-woocommerce
